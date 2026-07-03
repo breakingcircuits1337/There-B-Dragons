@@ -65,6 +65,7 @@ function newGameState() {
     journal: ['Fitted out at Port Meridian with 150 gold and a restless crew. The taverns whisper that the dragons did not die out — they went somewhere. Behind the Mist.'],
     dragonMet: false,
     ending: null,
+    shotType: 'round',   // 'round' | 'chain' | 'grape'  — cycles with [G]
   };
 }
 
@@ -210,9 +211,12 @@ function handleKey(e) {
     if (p) { openPort(p); return; }
     const l = nearestLandfall();
     if (l) { landfall(l); return; }
+    const enc = Naval.nearestEncounter();
+    if (enc) { resolveEncounter(enc); return; }
   }
   if (k === ' ') fireBroadside();
   if (k === 'b') tryBoard();
+  if (k === 'g') cycleShotType();
   if (k === 'm') toggleChart();
   if (k === 'j') toggleJournal();
   if (k === 'r') toggleRepPanel();
@@ -279,6 +283,55 @@ function landfall(isl) {
     if (!G.mistEvents.singing) { MistVoyage.forceSinging(); return; }
     startFinale();
     return;
+  }
+}
+
+function cycleShotType() {
+  const types = ['round', 'chain', 'grape'];
+  const labels = { round: '⚫ Round shot', chain: '⛓ Chain shot', grape: '💥 Grape shot' };
+  const descs  = { round: 'standard broadside', chain: 'slows enemy ships for 8s', grape: 'short range — softens crew before boarding' };
+  G.shotType = types[(types.indexOf(G.shotType) + 1) % types.length];
+  toast(`${labels[G.shotType]} — ${descs[G.shotType]}`, 2800);
+}
+
+function resolveEncounter(enc) {
+  enc.active = false;
+  if (enc.type === 'wreck') {
+    const gold = randInt(40, 120);
+    G.gold += gold;
+    let bonus = '';
+    if (totalCargo() < G.cargoCap && Math.random() < 0.6) {
+      const k = pick(Object.keys(GOODS));
+      G.cargo[k]++;
+      bonus = ` and a crate of ${GOODS[k].name.toLowerCase()}`;
+    }
+    journal(`Salvaged a wreck drifting on the open sea: ${gold} gold${bonus}.`);
+    toast(`Wreck salvaged — ${gold} gold${bonus}.`);
+    SFX.play('coin');
+  } else if (enc.type === 'market') {
+    const good = GOODS[enc.goodId];
+    const price = Math.max(1, Math.round(good.base * 0.6));
+    const evEl = document.getElementById('event');
+    evEl.innerHTML = `<div class="panel">
+      <h2>🛖 Drifting Market</h2>
+      <p>A weathered raft-market rides low in the water, its canopy patched with old sailcloth. The merchant leans over the rail: "Fresh stock, captain. ${good.name} — call it half what you'd pay ashore, but I won't be in these waters long."</p>
+      <div class="choices">
+        <button id="mktbuy" ${G.gold < price || totalCargo() >= G.cargoCap ? 'disabled' : ''}>Buy ${good.name} for ${price}g</button>
+        <button id="mktno">Pass</button>
+      </div>
+    </div>`;
+    evEl.classList.add('show');
+    evEl.querySelector('#mktbuy').onclick = () => {
+      if (G.gold < price || totalCargo() >= G.cargoCap) return;
+      G.gold -= price; G.cargo[enc.goodId]++;
+      SFX.play('coin');
+      journal(`Bought ${good.name} from a drifting market for ${price}g — well below market rate.`);
+      evEl.classList.remove('show');
+    };
+    evEl.querySelector('#mktno').onclick = () => {
+      enc.active = true; // put it back if they decline — they might change their mind
+      evEl.classList.remove('show');
+    };
   }
 }
 
@@ -625,11 +678,13 @@ function drawHud() {
   const hud = document.getElementById('hudLeft');
   const s = G.ship;
   const knots = (s.speed / 9).toFixed(1);
+  const shotLabels = { round: '⚫ Round', chain: '⛓ Chain', grape: '💥 Grape' };
   hud.innerHTML =
     `<div>⛵ Sail ${(s.sail * 100) | 0}% · ${knots} kn</div>` +
     `<div>🛡 Hull <span class="${s.hull < s.maxHull * 0.3 ? 'danger' : ''}">${Math.ceil(s.hull)}/${s.maxHull}</span></div>` +
     `<div>💰 ${G.gold} gold · 📦 ${totalCargo()}/${G.cargoCap}</div>` +
-    `<div>🗺 Fragments ${G.fragments}/3</div>`;
+    `<div>🗺 Fragments ${G.fragments}/3</div>` +
+    `<div class="shottype">[G] ${shotLabels[G.shotType || 'round']}</div>`;
 
   // compass with wind needle — spins uselessly in the Mist
   const compass = document.getElementById('compass');
@@ -642,9 +697,12 @@ function drawHud() {
   const hint = document.getElementById('hint');
   const p = nearestDockable(), l = nearestLandfall();
   const target = Naval.boardable();
+  const enc = Naval.nearestEncounter();
   if (p) hint.textContent = `[E] Dock at ${p.name}`;
   else if (l) hint.textContent = `[E] Make landfall — ${l.name}`;
   else if (target) hint.textContent = `[B] Board the crippled ${target.label}!`;
+  else if (enc && enc.type === 'wreck') hint.textContent = '[E] Salvage the wreck';
+  else if (enc && enc.type === 'market') hint.textContent = '[E] Approach the drifting market';
   else if (inMist()) hint.textContent = 'The Mist. Instruments fail. Hold your nerve and sail north.';
   else hint.textContent = '';
 }

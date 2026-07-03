@@ -202,7 +202,10 @@ const Port = (() => {
         return;
       }
       G.gold -= r.cost;
-      G.party.push({ ...r, hp: r.maxHp, mp: r.maxMp });
+      const levelDiff = G.partyLevel - 1;
+      const maxHp = r.maxHp + levelDiff * 8;
+      const maxMp = r.maxMp + levelDiff * 1;
+      G.party.push({ ...r, maxHp, hp: maxHp, maxMp, mp: maxMp });
       SFX.play('levelup');
       journal(`${r.name} signed aboard at ${isl.name}. ${r.loyaltyHint}`);
       toast(`${r.name} joins the crew!`, 4500);
@@ -215,8 +218,7 @@ const Port = (() => {
       G.gold -= 150;
       G.loyalty.sigrid = true;
       const sigrid = G.party.find(m => m.id === 'sigrid');
-      sigrid.maxHp += 10;
-      sigrid.hp = sigrid.maxHp;
+      if (sigrid) { sigrid.maxHp += 10; sigrid.hp = sigrid.maxHp; }
       SFX.play('levelup');
       journal('Cinderpeak\'s smiths reforged the star-iron harpoon. Sigrid held it up to the forge-glow and, for the first time anyone aboard has seen, smiled.');
       toast('The star-iron harpoon is whole. Sigrid will not miss.', 5000);

@@ -23,11 +23,13 @@ const SaveGame = (() => {
       const data = JSON.parse(raw);
       // rebuild the party from templates (core four + any hired recruits),
       // in saved order, restoring only the dynamic fields
+      data.loyalty = { sigrid: false, ashka: false, ...data.loyalty };
       const roster = PARTY_TEMPLATE.concat(RECRUITS);
       const savedParty = (data.party && data.party.length)
         ? data.party
         : PARTY_TEMPLATE.map(t => ({ id: t.id }));
       const party = savedParty.map(saved => {
+        if (!saved || !saved.id) return null;
         const t = roster.find(r => r.id === saved.id);
         if (!t) return null;
         return { ...t, hp: saved.hp ?? t.maxHp, mp: saved.mp ?? t.maxMp,

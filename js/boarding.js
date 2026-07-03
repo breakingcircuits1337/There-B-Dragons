@@ -23,9 +23,11 @@ const Boarding = (() => {
     effects = { shanty: 0, dirge: 0, smoke: 0, parry: false };
     // a larger boarding party emboldens the defenders
     const scale = 1 + 0.15 * Math.max(0, G.party.length - 4);
-    enemies = BOARDING_CREWS[crewKey].map((t, i) => {
-      const E = ENEMY_TYPES[t];
-      const hp = Math.round(E.maxHp * scale);
+    const crew = BOARDING_CREWS[crewKey] || [];
+    enemies = crew.map((t, i) => {
+      const E = ENEMY_TYPES[t] || { name: 'Unknown Enemy', maxHp: 30, atk: [5, 10], boss: false };
+      let hp = Math.round(E.maxHp * scale);
+      if (opts.grapeDebuff && !E.boss) hp = Math.round(hp * 0.65);
       return { ...E, maxHp: hp, hp, idx: i, type: t, stunned: false };
     });
     for (const m of G.party) m.mp = m.maxMp; // fresh powder for every action

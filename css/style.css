@@ -30,6 +30,7 @@ html, body {
 }
 #hudLeft { top: 14px; left: 14px; min-width: 170px; }
 #hudLeft .danger { color: #ff6a5a; font-weight: bold; }
+#hudLeft .shottype { color: #c8a840; font-size: 12px; margin-top: 2px; }
 
 #hudHelp {
   bottom: 12px; left: 50%;

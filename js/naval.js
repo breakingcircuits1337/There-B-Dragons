@@ -1,15 +1,20 @@
 // ============================================================
 // There Be Dragons — naval layer
-// Enemy ships, AI, broadside combat, hunters, ghost ship
+// Enemy ships, AI, broadside combat, hunters, ghost ship,
+// shot types (round / chain / grape), open-sea encounters
 // ============================================================
 'use strict';
 
 const Naval = (() => {
-  let ships = [];        // AI ships
-  let balls = [];        // cannonballs in flight
-  let smoke = [];        // particles
+  let ships = [];
+  let balls = [];
+  let smoke = [];
+  let encounters = [];
   let spawnTimer = 0;
   let hunterTimer = 0;
+  let encounterTimer = 0;
+  let leviathanTimer = 0;
+  let leviathanDone = false;
 
   const ROLES = {
     merchant: { hull: 60,  speed: 55, color: '#8a6f4a', flag: FACTIONS.merchant.flag, range: 0,   dmg: [0, 0],  gold: [60, 140],  cargoLoot: 6 },
@@ -20,9 +25,11 @@ const Naval = (() => {
   };
 
   function reset() {
-    ships = []; balls = []; smoke = [];
+    ships = []; balls = []; smoke = []; encounters = [];
     spawnTimer = 0; hunterTimer = 0;
-    // the ghost ship always circles the Drowned Court
+    encounterTimer = rand(30, 55);
+    leviathanTimer = rand(240, 420);
+    leviathanDone = false;
     spawnGhost();
   }
 
@@ -39,11 +46,13 @@ const Naval = (() => {
       speed: 0,
       hull: R.hull, maxHull: R.hull,
       cooldown: rand(1, 3),
-      state: 'patrol',       // patrol | chase | flee
+      state: 'patrol',
       wanderT: 0, wanderDir: rand(0, TAU),
       label: extra.label || role + ' ship',
       anchor: extra.anchor || null,
       boarded: false,
+      chainedUntil: 0,
+      grapeSoft: false,
       ...extra,
     };
   }
@@ -54,7 +63,7 @@ const Naval = (() => {
     if (ship.role === 'ghost' || ship.role === 'hunter') return true;
     if (ship.role === 'pirate') return G.rep.pirate < 20;
     if (ship.role === 'navy') return G.rep.navy <= -20;
-    return false; // merchants never attack
+    return false;
   }
 
   function update(dt) {
@@ -65,6 +74,7 @@ const Naval = (() => {
       const nearby = ships.filter(s => dist(s.x, s.y, G.ship.x, G.ship.y) < 1600).length;
       if (nearby < 4 && !inMist()) spawnAmbient();
     }
+
     // hunter escalation: any faction at HUNTED sends fast pursuit ships
     const hunted = Object.values(G.rep).some(r => r <= -50);
     if (hunted) {
@@ -79,6 +89,33 @@ const Naval = (() => {
       hunterTimer = 20;
     }
 
+    // open-sea encounters: wrecks and drifting markets
+    if (!inMist()) {
+      encounterTimer -= dt;
+      if (encounterTimer <= 0 && encounters.filter(e => e.active).length < 3) {
+        encounterTimer = rand(45, 85);
+        spawnEncounter();
+      }
+      encounters = encounters.filter(e => e.active && dist(e.x, e.y, G.ship.x, G.ship.y) < 2200);
+    }
+
+    // leviathan sighting — once per session, outside the Mist
+    if (!leviathanDone && !inMist()) {
+      leviathanTimer -= dt;
+      if (leviathanTimer <= 0) {
+        leviathanDone = true;
+        const msgs = [
+          'The sea goes black beneath the hull. Something vast passes under the keel — close enough to feel the pressure change. Then it is gone.',
+          'A shadow longer than the ship slides past to port, silent as oil. No ripple. No wake. Just a cold that comes and goes in five seconds.',
+          'Every fish in sight vanishes at once. The water darkens. Something breathes out from very far below — a sound you feel in your teeth, not your ears.',
+        ];
+        const m = pick(msgs);
+        toast('🐉 ' + m, 7000);
+        journal('At sea: ' + m);
+        SFX.play('buff');
+      }
+    }
+
     for (const s of ships) updateShipAI(s, dt);
     updateBalls(dt);
     updateSmoke(dt);
@@ -86,7 +123,6 @@ const Naval = (() => {
     ships = ships.filter(s => s.hull > 0 &&
       (s.role === 'ghost' || s.role === 'hunter' || dist(s.x, s.y, G.ship.x, G.ship.y) < 2600));
     if (!ships.some(s => s.role === 'ghost') && !G.fragmentFrom.drowned) {
-      // ghost respawns if it drifted into a cull edge-case
       spawnGhost();
     }
   }
@@ -97,7 +133,27 @@ const Naval = (() => {
     const y = clamp(G.ship.y + Math.sin(a) * rand(800, 1300), WORLD.MIST_Y + 100, WORLD.H - 60);
     const roll = Math.random();
     const role = roll < 0.45 ? 'merchant' : roll < 0.75 ? 'navy' : 'pirate';
-    ships.push(makeShip(role, x, y, { label: role === 'merchant' ? 'merchantman' : role === 'navy' ? 'navy frigate' : 'pirate sloop' }));
+    ships.push(makeShip(role, x, y, {
+      label: role === 'merchant' ? 'merchantman' : role === 'navy' ? 'navy frigate' : 'pirate sloop',
+    }));
+  }
+
+  function spawnEncounter() {
+    const a = rand(0, TAU);
+    const d = rand(650, 1050);
+    const x = clamp(G.ship.x + Math.cos(a) * d, 100, WORLD.W - 100);
+    const y = clamp(G.ship.y + Math.sin(a) * d, WORLD.MIST_Y + 150, WORLD.H - 100);
+    const type = Math.random() < 0.65 ? 'wreck' : 'market';
+    const enc = { type, x, y, r: 55, active: true, goodId: null };
+    if (type === 'market') enc.goodId = pick(Object.keys(GOODS));
+    encounters.push(enc);
+  }
+
+  function nearestEncounter() {
+    for (const e of encounters) {
+      if (e.active && dist(e.x, e.y, G.ship.x, G.ship.y) < e.r + 70) return e;
+    }
+    return null;
   }
 
   // ---- AI --------------------------------------------------------
@@ -124,12 +180,10 @@ const Naval = (() => {
       s.state = 'patrol';
     }
 
-    // nothing sails the Mist willingly — even hunters break off at its edge,
-    // which makes the Mist a last refuge for the hunted (and keeps the
-    // scripted voyage undisturbed)
+    // nothing sails the Mist willingly
     if (s.role !== 'ghost' && s.y < WORLD.MIST_Y + 60 && s.state !== 'flee') {
       s.state = 'patrol';
-      s.wanderDir = Math.PI / 2; // due south, back to charted water
+      s.wanderDir = Math.PI / 2;
       s.wanderT = Math.max(s.wanderT, 3);
     }
 
@@ -141,7 +195,6 @@ const Naval = (() => {
       if (s.wanderT <= 0) { s.wanderT = rand(3, 7); s.wanderDir = rand(0, TAU); }
       targetHeading = s.wanderDir;
       if (s.anchor) {
-        // orbit the anchor island
         const d = dist(s.x, s.y, s.anchor.x, s.anchor.y);
         const toC = Math.atan2(s.anchor.y - s.y, s.anchor.x - s.x);
         targetHeading = d > 380 ? toC : toC + Math.PI / 2;
@@ -149,10 +202,8 @@ const Naval = (() => {
       }
     } else if (s.state === 'chase') {
       const toP = Math.atan2(G.ship.y - s.y, G.ship.x - s.x);
-      // try to hold broadside range: approach until in range, then circle
       targetHeading = dToPlayer > R.range * 0.8 ? toP : toP + Math.PI / 2;
       throttle = 1;
-      // fire when player is roughly abeam and in range
       s.cooldown -= dt;
       if (dToPlayer < R.range && s.cooldown <= 0) {
         s.cooldown = s.role === 'hunter' ? 2.2 : 3;
@@ -166,10 +217,11 @@ const Naval = (() => {
     const dd = angleDiff(s.heading, targetHeading);
     s.heading += clamp(dd, -1.2 * dt, 1.2 * dt);
     const eff = 0.55 + 0.45 * sailEfficiency(angleDiff(s.heading, G.wind.dir));
-    s.speed = lerp(s.speed, R.speed * throttle * eff, 1 - Math.exp(-dt));
+    // chain shot halves the ship's effective top speed for 8 seconds
+    const maxSpd = (s.chainedUntil && G.time < s.chainedUntil) ? R.speed * 0.38 : R.speed;
+    s.speed = lerp(s.speed, maxSpd * throttle * eff, 1 - Math.exp(-dt));
     s.x += Math.cos(s.heading) * s.speed * dt;
     s.y += Math.sin(s.heading) * s.speed * dt;
-    // keep off islands
     for (const isl of ISLANDS) {
       const d = dist(s.x, s.y, isl.x, isl.y);
       if (d < isl.r + 20) {
@@ -186,14 +238,13 @@ const Naval = (() => {
     return balls.some(b => b.fromPlayer);
   }
 
-  // ---- Cannon fire ------------------------------------------------
+  // ---- Cannon fire -----------------------------------------------
+  // Shot types (player-only): round (default), chain (slows enemy),
+  // grape (short-range cone; softens crew before boarding)
 
   function playerFire() {
     const s = G.ship;
     if (s.cooldown > 0) return;
-    // aim at the nearest hostile first so a passing merchantman doesn't
-    // soak a broadside meant for a hunter; fall back to nearest ship
-    // (deliberate piracy stays possible), else fire to starboard
     const nearest = pool => pool.reduce((best, e) => {
       const d = dist(s.x, s.y, e.x, e.y);
       return !best || d < best.d ? { e, d } : best;
@@ -201,29 +252,50 @@ const Naval = (() => {
     const found = nearest(ships.filter(hostileToPlayer)) || nearest(ships);
     const target = found && found.e;
     const bd = found ? found.d : 1e9;
-    const range = 280;
+    const shotType = G.shotType || 'round';
+    const range = shotType === 'grape' ? 160 : 280;
     const dir = (target && bd < range + 60)
       ? Math.atan2(target.y - s.y, target.x - s.x)
       : s.heading + Math.PI / 2;
     s.cooldown = G.upgrades.guns3 ? 1.4 : 2.2;
     SFX.play('cannon');
-    fire({ x: s.x, y: s.y }, dir, true);
+    fire({ x: s.x, y: s.y }, dir, true, shotType);
   }
 
-  function fire(from, dir, fromPlayer) {
+  function fire(from, dir, fromPlayer, shotType = 'round') {
     if (!fromPlayer && dist(from.x, from.y, G.ship.x, G.ship.y) < 700) SFX.play('cannonFar');
-    const count = fromPlayer && G.upgrades.guns2 ? 3 : fromPlayer ? 2 : 2;
-    for (let i = 0; i < count; i++) {
-      const spread = (i - (count - 1) / 2) * 0.09;
+
+    if (fromPlayer && shotType === 'chain') {
+      // one slow projectile — what it lacks in damage it makes up for in rigging ruin
       balls.push({
         x: from.x, y: from.y,
-        vx: Math.cos(dir + spread) * 340,
-        vy: Math.sin(dir + spread) * 340,
-        life: 0.85,
-        fromPlayer,
-        src: fromPlayer ? null : from,
+        vx: Math.cos(dir) * 290, vy: Math.sin(dir) * 290,
+        life: 1.05, fromPlayer, src: null, shotType: 'chain',
       });
+    } else if (fromPlayer && shotType === 'grape') {
+      // fan of pellets — brutal at pistol range, useless past 150u
+      const pellets = G.upgrades.guns2 ? 9 : 7;
+      for (let i = 0; i < pellets; i++) {
+        const ang = dir + rand(-0.32, 0.32);
+        balls.push({
+          x: from.x, y: from.y,
+          vx: Math.cos(ang) * 215, vy: Math.sin(ang) * 215,
+          life: 0.75, fromPlayer, src: null, shotType: 'grape',
+        });
+      }
+    } else {
+      // round shot: standard broadsides
+      const count = fromPlayer && G.upgrades.guns2 ? 3 : fromPlayer ? 2 : 2;
+      for (let i = 0; i < count; i++) {
+        const spread = (i - (count - 1) / 2) * 0.09;
+        balls.push({
+          x: from.x, y: from.y,
+          vx: Math.cos(dir + spread) * 340, vy: Math.sin(dir + spread) * 340,
+          life: 0.85, fromPlayer, src: fromPlayer ? null : from, shotType: 'round',
+        });
+      }
     }
+
     for (let i = 0; i < 6; i++) {
       smoke.push({
         x: from.x + Math.cos(dir) * 14, y: from.y + Math.sin(dir) * 14,
@@ -241,8 +313,17 @@ const Naval = (() => {
       if (b.fromPlayer) {
         for (const s of ships) {
           if (dist(b.x, b.y, s.x, s.y) < 22) {
-            let dmg = rand(9, 15);
-            if (G.upgrades.guns3) dmg *= 1.5;
+            let dmg;
+            if (b.shotType === 'chain') {
+              dmg = Math.round(rand(5, 9) * (G.upgrades.guns3 ? 1.5 : 1));
+              s.chainedUntil = G.time + 8;
+              toast(`Chain shot — ${s.label} is fouled and slowed!`, 3500);
+            } else if (b.shotType === 'grape') {
+              dmg = Math.round(rand(3, 7) * (G.upgrades.guns3 ? 1.5 : 1));
+              s.grapeSoft = true;
+            } else {
+              dmg = Math.round(rand(9, 15) * (G.upgrades.guns3 ? 1.5 : 1));
+            }
             s.hull -= dmg;
             b.life = 0;
             splash(b.x, b.y);
@@ -281,7 +362,6 @@ const Naval = (() => {
     const f = map[role];
     if (!f) return;
     G.rep[f] = clamp(G.rep[f] + amount, -100, 100);
-    // sinking lawful ships pleases pirates a little, and vice versa
     if (f === 'navy' || f === 'merchant') G.rep.pirate = clamp(G.rep.pirate + 3, -100, 100);
     if (f === 'pirate') { G.rep.navy = clamp(G.rep.navy + 3, -100, 100); G.rep.merchant = clamp(G.rep.merchant + 2, -100, 100); }
     if (G.rep[f] <= -50) toast(`${FACTIONS[f].name} has marked you: HUNTED. Expect pursuit.`, 5000);
@@ -303,7 +383,6 @@ const Naval = (() => {
     }
   }
 
-  // a crippled hostile ship close aboard can be boarded instead of sunk
   function boardable() {
     for (const s of ships) {
       if (s.hull > 0 && s.hull <= s.maxHull * 0.35 &&
@@ -320,7 +399,10 @@ const Naval = (() => {
       : s.role === 'pirate' ? 'pirate' : 'merchant';
     Boarding.start(crewKey, {
       title: `Boarding the ${s.label}`,
-      intro: 'Grapnels bite, hulls grind together, and your crew pours over the rail with steel drawn.',
+      intro: s.grapeSoft
+        ? 'Grape shot swept the deck before your crew boarded — the defenders are already bloodied and scattered.'
+        : 'Grapnels bite, hulls grind together, and your crew pours over the rail with steel drawn.',
+      grapeDebuff: s.grapeSoft,
       onWin: () => {
         G.plunders++;
         const R = ROLES[s.role];
@@ -348,17 +430,74 @@ const Naval = (() => {
 
   // ---- Render ------------------------------------------------------
 
+  function renderEncounters(ctx, cam) {
+    for (const enc of encounters) {
+      if (!enc.active) continue;
+      const x = enc.x - cam.x, y = enc.y - cam.y;
+      if (x < -120 || x > canvas.width + 120 || y < -120 || y > canvas.height + 120) continue;
+
+      if (enc.type === 'wreck') {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.globalAlpha = 0.7;
+        drawShipShape(0, 0, 0.55, 12, '#4a3a2a', 0, '#666');
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(100,80,60,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(x, y, 30, 0, TAU); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.font = '11px Georgia'; ctx.textAlign = 'center';
+        ctx.fillText('wreck', x, y + 36);
+        ctx.textAlign = 'left';
+
+      } else if (enc.type === 'market') {
+        ctx.save();
+        ctx.translate(x, y);
+        // raft platform
+        ctx.fillStyle = '#7a5a2a';
+        ctx.fillRect(-20, -12, 40, 24);
+        ctx.strokeStyle = '#4a2a0a'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(-20, -12, 40, 24);
+        // canopy
+        ctx.fillStyle = '#c89820';
+        ctx.beginPath();
+        ctx.moveTo(-16, -12); ctx.lineTo(16, -12);
+        ctx.lineTo(12, -26); ctx.lineTo(-12, -26);
+        ctx.closePath(); ctx.fill();
+        // mast & pennant
+        ctx.strokeStyle = '#4a2a0a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, -34); ctx.stroke();
+        ctx.fillStyle = '#e8b830';
+        ctx.fillRect(0, -34, 11, 8);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.font = '11px Georgia'; ctx.textAlign = 'center';
+        ctx.fillText('drifting market', x, y + 28);
+        ctx.textAlign = 'left';
+      }
+    }
+  }
+
   function render(ctx, cam) {
+    renderEncounters(ctx, cam);
+
     for (const s of ships) {
       const x = s.x - cam.x, y = s.y - cam.y;
       if (x < -80 || x > canvas.width + 80 || y < -80 || y > canvas.height + 80) continue;
       const R = ROLES[s.role];
-      if (s.role === 'ghost') {
-        ctx.globalAlpha = 0.65 + 0.2 * Math.sin(G.time * 2);
-      }
+      if (s.role === 'ghost') ctx.globalAlpha = 0.65 + 0.2 * Math.sin(G.time * 2);
       drawShipShape(x, y, s.heading, 17, R.color, 0.8, R.flag);
       ctx.globalAlpha = 1;
-      // hull bar when damaged
+      // dashed ring when chain-slowed
+      if (s.chainedUntil && G.time < s.chainedUntil) {
+        ctx.strokeStyle = 'rgba(100,200,255,0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(x, y, 24, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+      }
       if (s.hull < s.maxHull) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(x - 18, y - 30, 36, 5);
@@ -366,29 +505,46 @@ const Naval = (() => {
         ctx.fillRect(x - 18, y - 30, 36 * (s.hull / s.maxHull), 5);
       }
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.font = '11px Georgia';
-      ctx.textAlign = 'center';
+      ctx.font = '11px Georgia'; ctx.textAlign = 'center';
       ctx.fillText(s.label, x, y + 32);
       ctx.textAlign = 'left';
     }
-    // cannonballs
-    ctx.fillStyle = '#1a1a1a';
+
+    // cannonballs — visually distinct by shot type
     for (const b of balls) {
-      ctx.beginPath();
-      ctx.arc(b.x - cam.x, b.y - cam.y, 3, 0, TAU);
-      ctx.fill();
+      const bx = b.x - cam.x, by = b.y - cam.y;
+      if (b.shotType === 'grape') {
+        ctx.fillStyle = '#2a1a0a';
+        ctx.beginPath(); ctx.arc(bx, by, 2, 0, TAU); ctx.fill();
+      } else if (b.shotType === 'chain') {
+        const ang = Math.atan2(b.vy, b.vx);
+        const len = 7;
+        ctx.strokeStyle = '#1a1a2a'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bx - Math.cos(ang) * len, by - Math.sin(ang) * len);
+        ctx.lineTo(bx + Math.cos(ang) * len, by + Math.sin(ang) * len);
+        ctx.stroke();
+        ctx.fillStyle = '#1a1a2a';
+        for (const sign of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(bx + Math.cos(ang) * len * sign, by + Math.sin(ang) * len * sign, 2.5, 0, TAU);
+          ctx.fill();
+        }
+      } else {
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath(); ctx.arc(bx, by, 3, 0, TAU); ctx.fill();
+      }
     }
+
     // smoke / splashes
     for (const p of smoke) {
       ctx.globalAlpha = clamp(p.life, 0, 0.6);
       ctx.fillStyle = p.white ? '#cfe8f0' : '#555';
-      ctx.beginPath();
-      ctx.arc(p.x - cam.x, p.y - cam.y, p.r, 0, TAU);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x - cam.x, p.y - cam.y, p.r, 0, TAU); ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
 
-  return { reset, update, render, playerFire, boardable, beginBoarding,
+  return { reset, update, render, playerFire, boardable, beginBoarding, nearestEncounter,
            get ships() { return ships; }, set ships(v) { ships = v; } };
 })();

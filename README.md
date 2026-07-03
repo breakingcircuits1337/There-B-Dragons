@@ -20,6 +20,7 @@ Open `index.html` in any modern browser. That's it. (Or serve the folder: `pytho
 | `M` | Captain's chart |
 | `J` | Captain's journal |
 | `R` | Faction standing |
+| `V` | Toggle sound |
 
 ## How it plays
 
@@ -28,7 +29,8 @@ Open `index.html` in any modern browser. That's it. (Or serve the folder: `pytho
 - **Reputation has teeth.** Sink or board a faction's ships and they remember. Drop below −50 and they close their harbors and send hunter ships after you.
 - **Boarding is tactical.** Cripple a ship, grapple on, and fight a turn-based deck battle with your party of four — Corsair Duelist, Tide-Caller, Powder Alchemist, and Shanty-Bard.
 - **Trade pays for the war.** Rum is cheap in the jungle, silk at its source, powder at the volcano forges — and the Ashen Order pays a fortune for hive-amber.
-- **The Mist is always north.** With all three fragments, sail into it: your compass spins, visibility collapses, and at the end an island waits with three ways to end the story.
+- **The Mist is always north.** With all three fragments, sail into it: your compass spins, visibility collapses, and the blind passage becomes a gauntlet — the crew's nerve breaks, sirens board in the fog, and something starts singing your ship toward shore. At the end an island waits with three ways to end the story.
+- **It has a voice.** All audio is synthesized live with Web Audio — wind that swells with your speed, cannon thunder, tavern stings, and the Mist's hum. No sound files, no downloads. `V` mutes.
 
 Progress autosaves (every 20 s at sea and on every dock). Press `L` on the title screen to resume.
 
@@ -42,6 +44,8 @@ js/game.js        engine: state, sailing physics, wind, rendering, HUD
 js/naval.js       enemy ships, AI, broadsides, hunters, the ghost ship
 js/boarding.js    turn-based party combat
 js/port.js        trade / shipyard / tavern interface
+js/mist.js        the Mist voyage gauntlet: morale, sirens, the singing
+js/sfx.js         synthesized Web Audio: ambience + one-shot effects
 js/save.js        localStorage autosave
 docs/GDD.md       the full game design document this prototype is built from
 ```

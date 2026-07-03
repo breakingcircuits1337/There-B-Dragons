@@ -56,6 +56,8 @@ function newGameState() {
     rumorsHeard: {},        // rumor id -> true
     fragments: 0,           // chart fragments toward the Mist voyage (need 3)
     fragmentFrom: {},       // island id -> fragment collected there
+    mistTimer: 0,           // seconds spent in the Mist on the true voyage
+    mistEvents: { morale: false, sirens: false, singing: false },
     party: PARTY_TEMPLATE.map(p => ({ ...p, hp: p.maxHp, mp: p.maxMp, level: 1 })),
     partyXp: 0, partyLevel: 1,
     kills: 0, plunders: 0,
@@ -190,6 +192,11 @@ function nearestLandfall() {
 
 function handleKey(e) {
   const k = e.key.toLowerCase();
+  SFX.ensure(); // audio needs a user gesture; the first keypress is it
+  if (k === 'v') {
+    toast(SFX.toggleMute() ? 'Sound muted.' : 'Sound on.');
+    return;
+  }
   if (G.mode === 'title') {
     if (k === 'enter') startGame(false);
     if (k === 'l') startGame(true);
@@ -233,6 +240,8 @@ function landfall(isl) {
     return;
   }
   if (isl.id === 'dragonisle') {
+    // the singing is the price of landfall — face it before the shore
+    if (!G.mistEvents.singing) { MistVoyage.forceSinging(); return; }
     startFinale();
     return;
   }
@@ -242,6 +251,7 @@ function grantFragment(islandId, text) {
   if (G.fragmentFrom[islandId]) return;
   G.fragmentFrom[islandId] = true;
   G.fragments++;
+  SFX.play('fragment');
   journal(`Chart fragment ${G.fragments}/3 recovered. ${text}`);
   toast(`Chart fragment recovered (${G.fragments}/3)!`, 5000);
   if (G.fragments >= 3) {
@@ -298,6 +308,7 @@ function startFinale() {
 function showEnding(key) {
   G.ending = key;
   G.mode = 'ending';
+  SFX.play('ending');
   const e = ENDINGS[key];
   const el = document.getElementById('event');
   el.innerHTML = `
@@ -625,6 +636,7 @@ function closePort() { G.mode = 'sail'; }
 
 function onPlayerDefeat() {
   // wash ashore at the nearest friendly port; lose some gold and cargo
+  SFX.play('sink');
   toast('Your ship goes down… you wash ashore days later, poorer but alive.', 6000);
   journal('Sunk. The crew clung to wreckage and drifted to safe harbor. Half the gold went to the deep.');
   G.gold = Math.floor(G.gold / 2);
@@ -672,9 +684,11 @@ function frame(now) {
     updateWind(dt);
     updateShip(dt);
     Naval.update(dt);
+    MistVoyage.update(dt);
     saveTimer += dt;
     if (saveTimer > 20) { saveTimer = 0; SaveGame.save(); }
   }
+  SFX.ambient();
   if (G.mode === 'sail' || G.mode === 'port') render();
   requestAnimationFrame(frame);
 }

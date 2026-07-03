@@ -19,6 +19,7 @@ const Port = (() => {
     if (f && G.rep[f] <= -20) {
       toast('They let you dock, but the harbormaster spits at your flag. Expect ugly prices.');
     }
+    SFX.play('dock');
     el().classList.add('show');
     show('harbor');
   }
@@ -81,10 +82,12 @@ const Port = (() => {
       if (G.gold < cost) { toast('Not enough gold for repairs.'); return; }
       G.gold -= cost;
       G.ship.hull = G.ship.maxHull;
+      SFX.play('coin');
       show('harbor');
     };
     body.querySelector('#rest').onclick = () => {
       for (const m of G.party) { m.hp = m.maxHp; m.mp = m.maxMp; }
+      SFX.play('heal');
       toast('The crew rests. Wounds close, songs are sung, someone loses a boot.');
       show('harbor');
     };
@@ -109,12 +112,14 @@ const Port = (() => {
       const id = b.dataset.buy, cost = goodPrice(id, true);
       if (G.gold < cost || totalCargo() >= G.cargoCap) return;
       G.gold -= cost; G.cargo[id]++;
+      SFX.play('coin');
       show('trade');
     });
     body.querySelectorAll('[data-sell]').forEach(b => b.onclick = () => {
       const id = b.dataset.sell;
       if (G.cargo[id] < 1) return;
       G.gold += goodPrice(id, false); G.cargo[id]--;
+      SFX.play('coin');
       show('trade');
     });
   }
@@ -140,6 +145,7 @@ const Port = (() => {
       if (u.id === 'hull2') { G.ship.maxHull = 150; G.ship.hull += 50; }
       if (u.id === 'hull3') { G.ship.maxHull = 220; G.ship.hull += 70; }
       if (u.id === 'cargo2') G.cargoCap = 40;
+      SFX.play('coin');
       journal(`Fitted ${u.name} at ${isl.name}.`);
       show('shipyard');
     });
@@ -164,6 +170,7 @@ const Port = (() => {
       if (G.gold < r.cost) { toast('You cannot even afford the round.'); return; }
       G.gold -= r.cost;
       G.rumorsHeard[r.id] = true;
+      SFX.play('rumor');
       if (r.reveals && !G.discovered[r.reveals]) {
         G.discovered[r.reveals] = true;
         toast(`New location charted: ${ISLANDS.find(i => i.id === r.reveals).name}. Check your chart [M].`, 5000);

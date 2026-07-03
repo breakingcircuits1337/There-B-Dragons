@@ -127,6 +127,7 @@ const Boarding = (() => {
 
   function hitEnemy(e, dmg, label) {
     e.hp -= dmg;
+    SFX.play('sword');
     log(`${label} — ${dmg} damage to ${e.name}.`);
     if (e.hp <= 0) log(`${e.name} is down!`, 'kill');
   }
@@ -151,17 +152,19 @@ const Boarding = (() => {
   }
 
   function resolveUntargeted(id, active) {
-    if (id === 'parry') { effects.parry = true; log(`${active.name} takes a parry stance.`); }
-    if (id === 'smoke') { effects.smoke = 1; log('Brix fills the deck with blinding smoke — the party is hard to hit.'); }
-    if (id === 'shanty') { effects.shanty = 2; log('Quill strikes up a battle shanty — blades move faster! (+40% dmg, 2 rounds)'); }
-    if (id === 'dirge') { effects.dirge = 2; log('Quill sings the Dirge of the Deep — the foe falters. (-30% enemy dmg, 2 rounds)'); }
+    if (id === 'parry') { effects.parry = true; SFX.play('buff'); log(`${active.name} takes a parry stance.`); }
+    if (id === 'smoke') { effects.smoke = 1; SFX.play('buff'); log('Brix fills the deck with blinding smoke — the party is hard to hit.'); }
+    if (id === 'shanty') { effects.shanty = 2; SFX.play('buff'); log('Quill strikes up a battle shanty — blades move faster! (+40% dmg, 2 rounds)'); }
+    if (id === 'dirge') { effects.dirge = 2; SFX.play('buff'); log('Quill sings the Dirge of the Deep — the foe falters. (-30% enemy dmg, 2 rounds)'); }
     if (id === 'springs') {
+      SFX.play('heal');
       const target = G.party.filter(m => m.hp > 0).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
       const heal = Math.round(rand(18, 26) * levelMul());
       target.hp = Math.min(target.maxHp, target.hp + heal);
       log(`Healing Springs restores ${heal} HP to ${target.name}.`);
     }
     if (id === 'bomb') {
+      SFX.play('bomb');
       for (const e of enemies) {
         if (e.hp <= 0) continue;
         hitEnemy(e, dmgRoll([10, 15]), 'The bomb blast hits');
@@ -220,6 +223,7 @@ const Boarding = (() => {
     let dmg = Math.round(rand(e.atk[0], e.atk[1]) * mult);
     if (m.id === 'captain' && effects.parry) dmg = Math.ceil(dmg / 2);
     m.hp -= dmg;
+    SFX.play('sword');
     log(`${e.name} ${tag === 'dragonfire' ? 'burns' : 'hits'} ${m.name} for ${dmg}.`, tag ? 'boss' : '');
     if (m.hp <= 0) { m.hp = 0; log(`${m.name} falls!`, 'kill'); }
   }
@@ -263,6 +267,7 @@ const Boarding = (() => {
           G.partyXp -= G.partyLevel * 150;
           G.partyLevel++;
           for (const m of G.party) { m.maxHp += 8; m.hp = m.maxHp; m.maxMp += 1; m.mp = m.maxMp; }
+          SFX.play('levelup');
           toast(`The crew grows saltier — party level ${G.partyLevel}!`, 4500);
           journal(`The crew reached level ${G.partyLevel}. Harder to kill, meaner in a scrap.`);
         }

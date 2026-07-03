@@ -87,7 +87,7 @@ One ocean, 4800×3600 world units in prototype (30–40 islands / 5–6 biome re
 
 **Act I — Salt** ✅: establish a captaincy; first tavern rumor ("a wrecker dug up a scorched chart corner…") teaches the rumor economy and points to Wreckers' Shoal.
 **Act II — Song** ✅: fragment 2 requires sinking/boarding the Drowned Court's ghost ship (naval + boarding skill gate). Fragment 3 leads to Amberreach: the **bee-dragon reveal** — amber-gold swarm dragons that don't attack but *escort you away from something*, seeding the twist that dragons are custodians, not predators. Their hum is the same hum whalers report from the Mist.
-**Act III — The Mist Voyage** ✅: assembled chart marks Dragon Isle dead north. Phases: (1) entry — instruments fail, visibility collapses; (2) blind passage — hold a heading with no landmarks; (3) landfall — the last dragon is waiting, and she has been *standing watch*. Three endings ✅: **Slay** (boss fight; the Mist lifts, the hive goes silent — victory that reads as loss), **Ally** (offer hive-amber; the Dragon Pact), **Awaken** (push past her; learn what she was guarding — the worst ending, delivered as a quiet apocalypse). Full game inserts crew-morale events and siren ambushes into phase 2.
+**Act III — The Mist Voyage** ✅: assembled chart marks Dragon Isle dead north. Phases: (1) entry — instruments fail, visibility collapses; (2) blind passage ✅ — a scripted gauntlet: a crew-morale crisis (spend rum, enforce discipline at a cost, or turn back), a siren boarding ambush, and finally *the singing* — a navigation choice between trusting the dragon's song (it takes the helm) or waxing the crew's ears (blunder over a reef); the singing must be faced before landfall is possible; (3) landfall — the last dragon is waiting, and she has been *standing watch*. Three endings ✅: **Slay** (boss fight; the Mist lifts, the hive goes silent — victory that reads as loss), **Ally** (offer hive-amber; the Dragon Pact), **Awaken** (push past her; learn what she was guarding — the worst ending, delivered as a quiet apocalypse).
 
 ## 8. Art Bible Summary
 
@@ -101,7 +101,7 @@ One ocean, 4800×3600 world units in prototype (30–40 islands / 5–6 biome re
 
 ## 9. Technical Architecture Sketch
 
-**Prototype** ✅: zero-dependency vanilla JS + Canvas 2D, five modules loaded as plain scripts — `data` (content tables) → `save` (localStorage autosave) → `boarding` (turn-based combat) → `naval` (ship AI/projectiles) → `port` (economy UI) → `game` (state, physics, render loop). Deterministic per-tile hashing for waves/plankton (no allocation churn); DOM overlays for all menus; autosaves every 20 s at sea and on every dock.
+**Prototype** ✅: zero-dependency vanilla JS + Canvas 2D, modules loaded as plain scripts — `data` (content tables) → `save` (localStorage autosave) → `sfx` (fully synthesized Web Audio: speed-scaled wind bed, depth-scaled Mist drone, ~16 one-shots; no asset files) → `boarding` (turn-based combat) → `naval` (ship AI/projectiles) → `port` (economy UI) → `mist` (Act III gauntlet) → `game` (state, physics, render loop). Deterministic per-tile hashing for waves/plankton (no allocation churn); DOM overlays for all menus; autosaves every 20 s at sea and on every dock.
 
 **Full game** `[DESIGN CALL]`: Unreal 5 for water/Nanite coastlines; ocean as the streaming ground-truth (islands stream in cells, ships are the only persistent actors); single save-slot journal-structured saves to reinforce voyage permanence; 60 fps at sea / 30 fps floor in 4-ship engagements on console baseline.
 

@@ -135,6 +135,33 @@ const PARTY_TEMPLATE = [
   },
 ];
 
+// Recruitable crew — found in taverns, join the boarding party (max 6).
+// Each has a unique ability the core four can't get, and a loyalty arc.
+const RECRUITS = [
+  {
+    id: 'sigrid', name: 'Sigrid Whalebone', cls: 'Harpooneer',
+    maxHp: 64, maxMp: 12, atk: [10, 16],
+    port: 'frostholm', cost: 300,
+    pitch: 'A Frostholm whaler with a harpoon taller than she is and a grudge against everything bigger than her boat. "I don\'t miss," she says. The scars on the tavern wall agree.',
+    loyaltyHint: 'Her grandmother\'s harpoon has a cracked head. The forges of Cinderpeak could reforge it — for a price.',
+    abilities: [
+      { id: 'harpoon', name: 'Harpoon Throw', cost: 4, desc: 'A thrown harpoon (18–26 dmg; 26–36 once reforged).' },
+      { id: 'lure', name: 'Leviathan Lure', cost: 4, desc: 'Rattle the deck like surfacing prey — one enemy loses its next turn.' },
+    ],
+  },
+  {
+    id: 'ashka', name: 'Ashka of the Green Maw', cls: 'Beast-Charmer',
+    maxHp: 50, maxMp: 14, atk: [6, 10],
+    port: 'verdant', cost: 300,
+    pitch: 'A Verdant Maw charmer who speaks to gulls, sharks, and things with too many rows of teeth. She wants passage east — she says something amber-gold has been singing in her dreams.',
+    loyaltyHint: 'She asks, every day, whether the ship will ever call at the humming isle east of Cinderpeak.',
+    abilities: [
+      { id: 'gullstorm', name: 'Gullstorm', cost: 5, desc: 'A shrieking wheel of seabirds rakes every enemy (8–12; 12–17 as Hivefriend).' },
+      { id: 'calm', name: 'Calm the Beast', cost: 4, desc: 'Soothe one enemy into stillness — it loses its next turn. Dragons are not beasts.' },
+    ],
+  },
+];
+
 const ENEMY_TYPES = {
   deckhand: { name: 'Deckhand',    maxHp: 30,  atk: [5, 9] },
   marine:   { name: 'Marine',      maxHp: 45,  atk: [8, 13] },

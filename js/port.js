@@ -157,6 +157,17 @@ const Port = (() => {
     html += localRumors.map(r =>
       `<button data-r="${r.id}">🍺 Buy a round, hear a rumor (${r.cost}g)</button>`).join('') ||
       '';
+    // recruitable crew drink here
+    const recruit = RECRUITS.find(r => r.port === isl.id && !G.party.some(m => m.id === r.id));
+    if (recruit && G.party.length < 6) {
+      html += `<div class="upg"><em>${recruit.pitch}</em></div>
+        <button data-hire="${recruit.id}">🤝 Hire ${recruit.name}, ${recruit.cls} (${recruit.cost}g)</button>`;
+    }
+    // Sigrid's loyalty arc: reforge the harpoon at the Cinderpeak forges
+    if (isl.id === 'cinderpeak' && G.party.some(m => m.id === 'sigrid') && !G.loyalty.sigrid) {
+      html += `<div class="upg"><em>Sigrid turns her grandmother's harpoon over in the forge-light. The star-iron head is cracked through. "They could mend it here," she says, not quite asking.</em></div>
+        <button id="reforge">🔥 Reforge the star-iron harpoon (150g)</button>`;
+    }
     // quest hook: the buried fragment at Wreckers' Shoal
     if (isl.id === 'wreckers' && G.rumorsHeard.frag1 && !G.fragmentFrom.wreckers) {
       html += `<button id="dig">⛏ Follow the wrecker's tale — dig on the north beach</button>`;
@@ -182,6 +193,34 @@ const Port = (() => {
     const dig = body.querySelector('#dig');
     if (dig) dig.onclick = () => {
       grantFragment('wreckers', 'Dug from the north beach of Wreckers\' Shoal, wrapped in oilcloth: a scorched corner of a master chart.');
+      show('tavern');
+    };
+    body.querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
+      const r = RECRUITS.find(x => x.id === b.dataset.hire);
+      if (!r || G.gold < r.cost || G.party.length >= 6) {
+        if (G.gold < r.cost) toast('You cannot cover the signing bounty.');
+        return;
+      }
+      G.gold -= r.cost;
+      G.party.push({ ...r, hp: r.maxHp, mp: r.maxMp });
+      SFX.play('levelup');
+      journal(`${r.name} signed aboard at ${isl.name}. ${r.loyaltyHint}`);
+      toast(`${r.name} joins the crew!`, 4500);
+      SaveGame.save();
+      show('tavern');
+    });
+    const reforge = body.querySelector('#reforge');
+    if (reforge) reforge.onclick = () => {
+      if (G.gold < 150) { toast('The smiths do not work on credit.'); return; }
+      G.gold -= 150;
+      G.loyalty.sigrid = true;
+      const sigrid = G.party.find(m => m.id === 'sigrid');
+      sigrid.maxHp += 10;
+      sigrid.hp = sigrid.maxHp;
+      SFX.play('levelup');
+      journal('Cinderpeak\'s smiths reforged the star-iron harpoon. Sigrid held it up to the forge-glow and, for the first time anyone aboard has seen, smiled.');
+      toast('The star-iron harpoon is whole. Sigrid will not miss.', 5000);
+      SaveGame.save();
       show('tavern');
     };
   }

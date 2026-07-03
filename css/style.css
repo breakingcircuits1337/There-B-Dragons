@@ -1,0 +1,242 @@
+/* ============================================================
+   There Be Dragons — stylesheet
+   Diegetic-leaning UI: parchment panels, brass accents
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #06121f;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #e8dcc0;
+}
+
+#sea { position: fixed; inset: 0; display: block; }
+
+/* ---- HUD ---------------------------------------------------- */
+
+.hud {
+  position: fixed;
+  background: rgba(10, 20, 30, 0.65);
+  border: 1px solid rgba(200, 170, 100, 0.35);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+  z-index: 5;
+}
+#hudLeft { top: 14px; left: 14px; min-width: 170px; }
+#hudLeft .danger { color: #ff6a5a; font-weight: bold; }
+
+#hudHelp {
+  bottom: 12px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
+#compass {
+  top: 14px; right: 14px;
+  width: 86px; height: 104px;
+  border-radius: 50% 50% 6px 6px;
+  text-align: center;
+}
+#compass .rose { font-size: 12px; opacity: 0.8; }
+#compass .needle {
+  position: absolute; left: 50%; top: 52px;
+  width: 3px; height: 30px;
+  background: linear-gradient(#ff5a4a, #ffd9a0);
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%);
+  border-radius: 2px;
+}
+#compass .wlabel {
+  position: absolute; bottom: 6px; left: 0; right: 0;
+  font-size: 11px; opacity: 0.85;
+}
+
+#hint {
+  position: fixed;
+  bottom: 46px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  color: #ffe9b0;
+  text-shadow: 0 1px 4px #000;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#toast {
+  position: fixed;
+  top: 70px; left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  background: rgba(30, 24, 12, 0.92);
+  border: 1px solid #c8aa64;
+  border-radius: 6px;
+  padding: 10px 18px;
+  max-width: 560px;
+  font-size: 15px;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 20;
+  pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- Overlays & panels -------------------------------------- */
+
+.overlay {
+  position: fixed; inset: 0;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(4, 8, 14, 0.6);
+  z-index: 10;
+}
+.overlay.show { display: flex; }
+
+.panel {
+  background: linear-gradient(160deg, #2a2416, #1c1810);
+  border: 2px solid #c8aa64;
+  border-radius: 10px;
+  padding: 22px 26px;
+  max-width: min(760px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 60px rgba(0, 0, 0, 0.7);
+}
+.panel h2 { color: #ffd98a; margin-bottom: 10px; font-size: 22px; }
+.panel p { margin: 8px 0; line-height: 1.55; }
+.panel .close {
+  float: right;
+  background: none; border: 1px solid #c8aa64; border-radius: 4px;
+  color: #e8dcc0; cursor: pointer; padding: 2px 8px; font-size: 13px;
+}
+
+button {
+  font-family: inherit;
+  background: #3a3020;
+  color: #ffe9b0;
+  border: 1px solid #c8aa64;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin: 4px 4px 4px 0;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-block;
+}
+button:hover:not(:disabled) { background: #55452a; }
+button:disabled { opacity: 0.4; cursor: default; }
+
+.scrollbody { max-height: 55vh; overflow-y: auto; font-size: 14px; }
+.scrollbody p { margin: 6px 0; }
+
+/* ---- Title screen ------------------------------------------- */
+
+#title { background: radial-gradient(ellipse at 50% 30%, #12304a, #050c16 75%); }
+.title-panel { text-align: center; max-width: 640px; }
+.title-panel h1 {
+  font-size: 44px;
+  letter-spacing: 6px;
+  color: #ffd98a;
+  text-shadow: 0 2px 14px rgba(255, 180, 60, 0.35);
+}
+.subtitle { font-style: italic; opacity: 0.85; margin-top: 6px; }
+.titlebody { text-align: left; margin: 18px 0; font-size: 15px; }
+.titlebody .keys { opacity: 0.85; font-size: 14px; }
+.pressstart { margin-top: 14px; font-size: 17px; color: #ffe9b0; animation: blink 1.6s infinite; }
+.pressstart.small { font-size: 13px; animation: none; opacity: 0.75; }
+@keyframes blink { 50% { opacity: 0.45; } }
+
+/* ---- Reputation --------------------------------------------- */
+
+.repRow { display: flex; gap: 8px; padding: 6px 2px; font-size: 15px; min-width: 320px; }
+.repRow .repVal { margin-left: auto; opacity: 0.9; }
+.repVal.hunted { color: #ff5a4a; font-weight: bold; }
+
+/* ---- Port ----------------------------------------------------- */
+
+.panel.port { width: min(680px, 92vw); }
+.portdesc { font-style: italic; opacity: 0.9; }
+.tabs { margin: 12px 0 8px; border-bottom: 1px solid #c8aa6455; padding-bottom: 8px; }
+.tab.on { background: #6a5530; }
+.tab.leave { float: right; background: #24401f; }
+.tabbody { min-height: 200px; padding: 6px 0; }
+.portfoot { border-top: 1px solid #c8aa6455; padding-top: 8px; font-size: 14px; opacity: 0.9; }
+
+table.trade { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.trade th, table.trade td { text-align: left; padding: 6px 8px; }
+table.trade tr:nth-child(even) { background: rgba(255, 255, 255, 0.04); }
+table.trade button { padding: 3px 12px; margin: 0; font-size: 13px; }
+.tradetip { font-size: 13px; opacity: 0.7; font-style: italic; margin-top: 10px; }
+
+.upg { padding: 8px 4px; border-bottom: 1px solid rgba(200, 170, 100, 0.15); font-size: 14px; }
+.upg.owned { opacity: 0.6; }
+.upg .tag { font-size: 12px; opacity: 0.75; font-style: italic; }
+.upg button { float: right; margin-top: -4px; }
+
+/* ---- Boarding combat ------------------------------------------ */
+
+.panel.combat { width: min(720px, 94vw); }
+.battlefield { display: flex; gap: 14px; align-items: flex-start; }
+.battlefield .party, .battlefield .enemies { flex: 1; }
+.battlefield .vs { font-size: 26px; padding-top: 40px; opacity: 0.6; }
+
+.unit {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(200, 170, 100, 0.3);
+  border-radius: 6px;
+  padding: 7px 9px;
+  margin-bottom: 7px;
+  font-size: 13px;
+}
+.unit.active { border-color: #ffd98a; box-shadow: 0 0 10px rgba(255, 217, 138, 0.35); }
+.unit.dead { opacity: 0.35; filter: grayscale(1); }
+.unit.enemy.targetable { cursor: pointer; border-color: #ff8a5a; }
+.unit.enemy.targetable:hover { background: rgba(255, 120, 80, 0.15); }
+.uname { font-weight: bold; color: #ffe9b0; }
+.ucls { font-size: 11px; opacity: 0.75; margin-bottom: 3px; }
+
+.bar {
+  position: relative; height: 13px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px; overflow: hidden;
+  margin-top: 3px;
+}
+.bar i { display: block; height: 100%; background: #4ac06a; transition: width 0.3s; }
+.bar.mp i { background: #4a8ac0; }
+.bar span {
+  position: absolute; inset: 0;
+  font-size: 10px; text-align: center; line-height: 13px;
+  color: #fff; text-shadow: 0 1px 2px #000;
+}
+
+.effects { min-height: 20px; font-size: 13px; color: #9adcff; padding: 4px 0; }
+.actions { min-height: 88px; padding: 6px 0; border-top: 1px solid rgba(200, 170, 100, 0.25); }
+.actions .prompt { font-size: 14px; margin-bottom: 4px; color: #ffd98a; }
+.actions button small { opacity: 0.7; }
+
+.blog {
+  max-height: 140px; overflow-y: auto;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.blog .title { color: #ffd98a; font-weight: bold; }
+.blog .intro { font-style: italic; opacity: 0.9; }
+.blog .kill { color: #ff9a6a; }
+.blog .boss { color: #ff6a4a; font-weight: bold; }
+
+/* ---- Story events / endings ----------------------------------- */
+
+.choices { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.choices button { font-size: 15px; text-align: left; }
+.panel.ending h2 { font-size: 28px; }
+.panel.ending .stats { margin-top: 14px; font-size: 13px; opacity: 0.75; font-style: italic; }
+
+#chartCanvas { display: block; border: 1px solid #c8aa64; border-radius: 4px; }

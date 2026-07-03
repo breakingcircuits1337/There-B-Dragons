@@ -59,6 +59,7 @@ function newGameState() {
     mistTimer: 0,           // seconds spent in the Mist on the true voyage
     mistEvents: { morale: false, sirens: false, singing: false },
     loyalty: { sigrid: false, ashka: false },   // recruit loyalty arcs resolved
+    islandEvents: {},        // one-time per-island event flags
     party: PARTY_TEMPLATE.map(p => ({ ...p, hp: p.maxHp, mp: p.maxMp, level: 1 })),
     partyXp: 0, partyLevel: 1,
     kills: 0, plunders: 0,
@@ -278,6 +279,89 @@ function landfall(isl) {
     });
     return;
   }
+  if (isl.id === 'cannibal') {
+    G.islandEvents = G.islandEvents || {};
+    // Return-visit messages after the event resolves
+    if (G.islandEvents.cannibals === 'fight') {
+      toast('The Feasting Isle is quiet. The jungle has reclaimed the cooking fires.');
+      return;
+    }
+    if (G.islandEvents.cannibals === 'parley') {
+      toast('The elder of the Feasting Isle watches from the treeline. The totems still stand.');
+      return;
+    }
+    G.mode = 'landfall';
+    const ev = document.getElementById('event');
+    ev.innerHTML = `
+      <div class="panel">
+        <h2>The Feasting Isle</h2>
+        <p>The smoke is wrong — too many fires, too carefully placed. Carved totems line the beach: figureheads, compass roses, and one very ornate Merchant Compact seal, all rearranged into something that means something else entirely. Three warriors in warpaint watch from the treeline. One of them waves.</p>
+        <div class="choices">
+          <button data-c="fight">⚔ Land with weapons drawn</button>
+          <button data-c="rum" ${G.cargo.rum < 2 ? 'disabled' : ''}>🍺 Row ashore with two barrels of rum${G.cargo.rum < 2 ? ' (need 2 rum in hold)' : ''}</button>
+          <button data-c="leave">⛵ This is a very bad idea — back to sea</button>
+        </div>
+      </div>`;
+    ev.classList.add('show');
+    ev.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+      const c = b.dataset.c;
+      ev.classList.remove('show');
+      if (c === 'leave') { G.mode = 'sail'; return; }
+
+      if (c === 'fight') {
+        // Stage 2A: full boarding encounter
+        Boarding.start('cannibal', {
+          title: 'The Feasting Isle',
+          intro: 'The waving stops the moment your boots touch sand. The treeline erupts with painted bodies and something that sounds like drumming but isn\'t.',
+          onWin: () => {
+            G.islandEvents.cannibals = 'fight';
+            const gold = randInt(90, 190);
+            G.gold += gold;
+            journal(`Fought our way through the Feasting Isle. The village held iron pots, a ledger of missing ships going back twelve years, ship\'s lanterns from six different vessels, and — under the chief\'s longhouse — a Merchant Compact strongbox with ${gold} gold. The survivors scattered into the jungle. The cook refuses to serve supper tonight.`);
+            toast(`The Feasting Isle is yours. ${gold} gold from the chief\'s cache. Nobody is eating tonight.`, 5000);
+          },
+          onLose: () => {
+            journal('Driven off the Feasting Isle. The warriors did not pursue past the waterline. Small mercies.');
+            toast('The crew retreats to the boats. The warriors watch them go without following.', 5000);
+          },
+        });
+      } else if (c === 'rum') {
+        // Stage 2B: rum parley — multi-step reveal
+        G.cargo.rum -= 2;
+        G.islandEvents.cannibals = 'parley';
+        const gold = randInt(180, 290);
+        const discoveredAmber = !G.discovered.amberreach;
+        if (discoveredAmber) G.discovered.amberreach = true;
+        const ev2 = document.getElementById('event');
+        ev2.innerHTML = `
+          <div class="panel">
+            <h2>The Elder's Offer</h2>
+            <p>The rum works. The elder — a lean man who speaks three trade languages and one the linguists haven't catalogued yet — accepts the barrels with ceremony. What follows can only be called hospitality if you squint. Before dusk he walks you to a sea cave at the island's back and shows you what his people have been guarding since it washed ashore: a merchant's strongbox, still locked, sea-slick but intact.</p>
+            <p><em>"Bad luck to keep,"</em> he gestures. <em>"Good luck to give."</em></p>
+            <p>He also tells you — with very deliberate pointing, north-then-east — of a night long ago when something vast fell from the northern lights: amber-gold, trailing fire, singing a note so deep the jungle floor rippled. It swam east. It was not afraid. It did not look back.</p>
+            ${discoveredAmber ? `<p class="intro"><em>East of Cinderpeak. Amber-gold. Something is out there that your charts don't show yet.</em></p>` : ''}
+            <div class="choices"><button id="candone">Take the chest and go</button></div>
+          </div>`;
+        ev2.classList.add('show');
+        ev2.querySelector('#candone').onclick = () => {
+          ev2.classList.remove('show');
+          G.gold += gold;
+          journal(`Parleyed at the Feasting Isle. The elder traded a wrecked merchant\'s strongbox (${gold} gold) for two barrels of rum and an afternoon of careful goodwill. He described an amber-gold creature — vast, falling from the north, swimming east, singing. The hive hum. The Mist hum. The same note.${discoveredAmber ? ' His account matches the eastern rumours: Amberreach, now charted.' : ''}`);
+          if (discoveredAmber) {
+            toast(`Elder\'s cache — ${gold} gold, and a lead: something amber-gold swam east. Amberreach charted.`, 6500);
+            SFX.play('fragment');
+          } else {
+            toast(`Elder\'s cache: ${gold} gold. His story and your charts tell the same tale.`, 5000);
+            SFX.play('coin');
+          }
+          G.mode = 'sail';
+          SaveGame.save();
+        };
+      }
+    });
+    return;
+  }
+
   if (isl.id === 'dragonisle') {
     // the singing is the price of landfall — face it before the shore
     if (!G.mistEvents.singing) { MistVoyage.forceSinging(); return; }

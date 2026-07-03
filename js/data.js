@@ -85,6 +85,12 @@ const ISLANDS = [
     priceMod: {},
   },
   {
+    id: 'cannibal', name: 'The Feasting Isle', biome: 'jungle', faction: null,
+    x: 2200, y: 2600, r: 130, port: false, hidden: true,
+    color: '#1e5420', desc: 'Thick jungle ringed by carved totems and the smoke of too many fires.',
+    priceMod: {},
+  },
+  {
     id: 'amberreach', name: 'Amberreach', biome: 'hive', faction: 'hive',
     x: 4250, y: 1500, r: 120, port: false, hidden: true,
     color: '#e8c860', desc: 'Combs of wax the size of cathedrals. The air hums. Amber-gold shapes swarm the cliffs.',
@@ -163,13 +169,15 @@ const RECRUITS = [
 ];
 
 const ENEMY_TYPES = {
-  deckhand: { name: 'Deckhand',    maxHp: 30,  atk: [5, 9] },
-  marine:   { name: 'Marine',      maxHp: 45,  atk: [8, 13] },
-  corsair:  { name: 'Corsair',     maxHp: 38,  atk: [7, 12] },
-  zealot:   { name: 'Ashen Zealot',maxHp: 40,  atk: [10, 15] },
-  drone:    { name: 'Hive Drone',  maxHp: 26,  atk: [6, 10] },
-  wraith:   { name: 'Drowned Wraith', maxHp: 55, atk: [9, 14] },
-  siren:    { name: 'Mist Siren',  maxHp: 36,  atk: [8, 13] },
+  deckhand: { name: 'Deckhand',       maxHp: 30,  atk: [5, 9] },
+  marine:   { name: 'Marine',         maxHp: 45,  atk: [8, 13] },
+  corsair:  { name: 'Corsair',        maxHp: 38,  atk: [7, 12] },
+  zealot:   { name: 'Ashen Zealot',   maxHp: 40,  atk: [10, 15] },
+  drone:    { name: 'Hive Drone',     maxHp: 26,  atk: [6, 10] },
+  wraith:   { name: 'Drowned Wraith', maxHp: 55,  atk: [9, 14] },
+  siren:    { name: 'Mist Siren',     maxHp: 36,  atk: [8, 13] },
+  tribal:   { name: 'Tribal Warrior', maxHp: 38,  atk: [9, 14] },
+  chief:    { name: 'Cannibal Chief', maxHp: 98,  atk: [15, 22] },
   dragon:   { name: 'The Last Dragon', maxHp: 420, atk: [16, 26], boss: true },
 };
 
@@ -182,6 +190,7 @@ const BOARDING_CREWS = {
   ghost:    ['wraith', 'wraith', 'wraith'],
   siren:    ['siren', 'siren', 'siren', 'siren'],
   hive:     ['drone', 'drone', 'drone', 'drone'],
+  cannibal: ['tribal', 'tribal', 'tribal', 'chief'],
   dragon:   ['dragon'],
 };
 
@@ -220,6 +229,11 @@ const RUMORS = [
     id: 'mist_warning', port: 'frostholm', cost: 30,
     text: '“Compasses spin in the Mist. The old whalers navigated it by sound — the dragon isle sings, they said, dead north of the world\'s middle.”',
     reveals: null, fragment: null,
+  },
+  {
+    id: 'cannibal_isle', port: 'verdant', cost: 35,
+    text: '"There is another island south of here — no chart, no name, smoke from a dozen fires burning together. Our fishermen know the heading. None of them will take you. The last ship that went had thirty crew. Two came back, and they will not eat meat now and they will not say why."',
+    reveals: 'cannibal', fragment: null,
   },
   {
     id: 'hunters', port: 'silkwater', cost: 20,

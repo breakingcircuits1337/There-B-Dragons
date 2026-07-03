@@ -137,12 +137,14 @@ const Boarding = (() => {
     const active = G.party[turnIdx];
     if (pendingAbility === 'attack') {
       hitEnemy(e, dmgRoll(active.atk), `${active.name} strikes`);
-    } else if (pendingAbility === 'flurry') {
-      active.mp -= 4;
-      for (let n = 0; n < 3 && e.hp > 0; n++) hitEnemy(e, dmgRoll([6, 9]), `Flurry cut ${n + 1}`);
-    } else if (pendingAbility === 'tidal') {
-      active.mp -= 4;
-      hitEnemy(e, dmgRoll([16, 24]), 'Tidal Lash crashes down');
+    } else {
+      const ab = active.abilities.find(a => a.id === pendingAbility);
+      if (ab) active.mp -= ab.cost;
+      if (pendingAbility === 'flurry') {
+        for (let n = 0; n < 3 && e.hp > 0; n++) hitEnemy(e, dmgRoll([6, 9]), `Flurry cut ${n + 1}`);
+      } else if (pendingAbility === 'tidal') {
+        hitEnemy(e, dmgRoll([16, 24]), 'Tidal Lash crashes down');
+      }
     }
     pendingAbility = null;
     endMemberTurn();
@@ -257,9 +259,8 @@ const Boarding = (() => {
       if (won) {
         const xp = enemies.reduce((a, e) => a + e.maxHp, 0);
         G.partyXp += xp;
-        const need = G.partyLevel * 150;
-        if (G.partyXp >= need) {
-          G.partyXp -= need;
+        while (G.partyXp >= G.partyLevel * 150) {
+          G.partyXp -= G.partyLevel * 150;
           G.partyLevel++;
           for (const m of G.party) { m.maxHp += 8; m.hp = m.maxHp; m.maxMp += 1; m.mp = m.maxMp; }
           toast(`The crew grows saltier — party level ${G.partyLevel}!`, 4500);

@@ -176,12 +176,16 @@ const Naval = (() => {
   function playerFire() {
     const s = G.ship;
     if (s.cooldown > 0) return;
-    // aim at nearest enemy within range, else fire to starboard
-    let target = null, bd = 1e9;
-    for (const e of ships) {
+    // aim at the nearest hostile first so a passing merchantman doesn't
+    // soak a broadside meant for a hunter; fall back to nearest ship
+    // (deliberate piracy stays possible), else fire to starboard
+    const nearest = pool => pool.reduce((best, e) => {
       const d = dist(s.x, s.y, e.x, e.y);
-      if (d < bd) { bd = d; target = e; }
-    }
+      return !best || d < best.d ? { e, d } : best;
+    }, null);
+    const found = nearest(ships.filter(hostileToPlayer)) || nearest(ships);
+    const target = found && found.e;
+    const bd = found ? found.d : 1e9;
     const range = 280;
     const dir = (target && bd < range + 60)
       ? Math.atan2(target.y - s.y, target.x - s.x)

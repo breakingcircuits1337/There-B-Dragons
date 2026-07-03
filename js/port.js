@@ -75,7 +75,7 @@ const Port = (() => {
     const cost = Math.ceil(dmg * 2 * priceMult(true));
     body.innerHTML = `
       <p>The harbor is ${isl.faction ? 'kept in ' + FACTIONS[isl.faction].name + ' order' : 'quiet'}. Gulls argue over fish heads. Your crew eyes the taverns.</p>
-      <button id="repair" ${dmg < 1 ? 'disabled' : ''}>🔧 Careen & repair hull (${cost} gold)</button>
+      <button id="repair" ${G.ship.hull >= G.ship.maxHull ? 'disabled' : ''}>🔧 Careen & repair hull (${cost} gold)</button>
       <button id="rest">🛏 Rest the crew — heal the party (free)</button>`;
     body.querySelector('#repair').onclick = () => {
       if (G.gold < cost) { toast('Not enough gold for repairs.'); return; }

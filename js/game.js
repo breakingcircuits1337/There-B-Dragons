@@ -126,8 +126,9 @@ window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 function updateShip(dt) {
   const s = G.ship;
-  if (keys['a'] || keys['arrowleft'])  s.heading -= 1.1 * dt * (0.4 + 0.6 * (1 - s.speed / 140));
-  if (keys['d'] || keys['arrowright']) s.heading += 1.1 * dt * (0.4 + 0.6 * (1 - s.speed / 140));
+  const helm = 1.1 * dt * clamp(0.4 + 0.6 * (1 - s.speed / 140), 0.25, 1);
+  if (keys['a'] || keys['arrowleft'])  s.heading -= helm;
+  if (keys['d'] || keys['arrowright']) s.heading += helm;
   if (keys['w'] || keys['arrowup'])    s.sail = clamp(s.sail + 0.8 * dt, 0, 1);
   if (keys['s'] || keys['arrowdown'])  s.sail = clamp(s.sail - 0.8 * dt, 0, 1);
 
@@ -263,14 +264,20 @@ function startFinale() {
       <p>She speaks without sound: <em>«You followed my children's hum across the world. Choose, captain.»</em></p>
       <div class="choices">
         <button data-c="slay">⚔ Slay her — end the Mist forever</button>
-        <button data-c="ally">🤝 Offer the hive-amber — make the Dragon Pact</button>
+        <button data-c="ally" ${G.cargo.amber < 1 ? 'disabled' : ''}>🤝 Offer the hive-amber — make the Dragon Pact${G.cargo.amber < 1 ? ' (requires hive-amber in the hold)' : ''}</button>
         <button data-c="awaken">🕳 Push past her — see what sleeps below</button>
+        <button data-c="leave">⛵ Not yet — back to the ship</button>
       </div>
     </div>`;
   el.classList.add('show');
   el.querySelectorAll('button').forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     el.classList.remove('show');
+    if (c === 'leave') {
+      G.mode = 'sail';
+      toast('She watches you row back to the ship. The Mist waits. So will she.');
+      return;
+    }
     if (c === 'slay') {
       Boarding.start('dragon', {
         title: 'The Last Dragon',
@@ -280,6 +287,7 @@ function startFinale() {
       });
       G.mode = 'boarding';
     } else if (c === 'ally') {
+      G.cargo.amber--; // the comb is given, not kept
       showEnding('ally');
     } else {
       showEnding('awaken');
@@ -628,6 +636,7 @@ function onPlayerDefeat() {
   for (const m of G.party) { m.hp = m.maxHp; m.mp = m.maxMp; }
   Naval.reset();
   G.mode = 'sail';
+  SaveGame.save(); // the sea keeps what it takes — no reload scumming
 }
 
 // ---- Title / start --------------------------------------------

@@ -118,6 +118,21 @@ const Naval = (() => {
     }
     if (s.hull < s.maxHull * 0.25 && s.role !== 'ghost' && s.role !== 'hunter') s.state = 'flee';
 
+    // anchored guardians (the ghost ship) never stray far from their post
+    if (s.anchor && s.state === 'chase' &&
+        dist(s.x, s.y, s.anchor.x, s.anchor.y) > 650) {
+      s.state = 'patrol';
+    }
+
+    // nothing sails the Mist willingly — even hunters break off at its edge,
+    // which makes the Mist a last refuge for the hunted (and keeps the
+    // scripted voyage undisturbed)
+    if (s.role !== 'ghost' && s.y < WORLD.MIST_Y + 60 && s.state !== 'flee') {
+      s.state = 'patrol';
+      s.wanderDir = Math.PI / 2; // due south, back to charted water
+      s.wanderT = Math.max(s.wanderT, 3);
+    }
+
     let targetHeading = s.heading;
     let throttle = 0.6;
 
@@ -191,10 +206,12 @@ const Naval = (() => {
       ? Math.atan2(target.y - s.y, target.x - s.x)
       : s.heading + Math.PI / 2;
     s.cooldown = G.upgrades.guns3 ? 1.4 : 2.2;
+    SFX.play('cannon');
     fire({ x: s.x, y: s.y }, dir, true);
   }
 
   function fire(from, dir, fromPlayer) {
+    if (!fromPlayer && dist(from.x, from.y, G.ship.x, G.ship.y) < 700) SFX.play('cannonFar');
     const count = fromPlayer && G.upgrades.guns2 ? 3 : fromPlayer ? 2 : 2;
     for (let i = 0; i < count; i++) {
       const spread = (i - (count - 1) / 2) * 0.09;
@@ -229,6 +246,7 @@ const Naval = (() => {
             s.hull -= dmg;
             b.life = 0;
             splash(b.x, b.y);
+            SFX.play('splash');
             if (s.hull <= 0) onSink(s);
             break;
           }
@@ -238,6 +256,7 @@ const Naval = (() => {
         G.ship.hull -= rand(src.dmg[0], src.dmg[1]);
         b.life = 0;
         splash(b.x, b.y);
+        SFX.play('damage');
         if (G.ship.hull <= 0) { G.ship.hull = 0; onPlayerDefeat(); return; }
       }
     }
@@ -270,6 +289,7 @@ const Naval = (() => {
 
   function onSink(s) {
     G.kills++;
+    SFX.play('sink');
     const R = ROLES[s.role];
     const gold = randInt(R.gold[0], R.gold[1]);
     G.gold += gold;

@@ -7,7 +7,7 @@
 const WORLD = {
   W: 4800,
   H: 3600,
-  MIST_Y: 620,          // everything above this line is the Mist
+  MIST_Y: 850,          // everything above this line is the Mist
   DAY_LENGTH: 240,      // seconds for a full day/night cycle
 };
 
@@ -68,7 +68,7 @@ const ISLANDS = [
   },
   {
     id: 'frostholm', name: 'Frostholm', biome: 'frozen', faction: 'islander',
-    x: 1050, y: 950, r: 140, port: true,
+    x: 1050, y: 1060, r: 140, port: true,
     color: '#dfe8f0', desc: 'The frozen north. Whale-oil lamps burn against the long dark.',
     priceMod: { rum: 1.5, silk: 1.4, powder: 1.0, amber: 1.8 },
   },
@@ -142,6 +142,7 @@ const ENEMY_TYPES = {
   zealot:   { name: 'Ashen Zealot',maxHp: 40,  atk: [10, 15] },
   drone:    { name: 'Hive Drone',  maxHp: 26,  atk: [6, 10] },
   wraith:   { name: 'Drowned Wraith', maxHp: 55, atk: [9, 14] },
+  siren:    { name: 'Mist Siren',  maxHp: 36,  atk: [8, 13] },
   dragon:   { name: 'The Last Dragon', maxHp: 420, atk: [16, 26], boss: true },
 };
 
@@ -152,6 +153,7 @@ const BOARDING_CREWS = {
   pirate:   ['corsair', 'corsair', 'deckhand'],
   hunter:   ['marine', 'marine', 'marine', 'zealot'],
   ghost:    ['wraith', 'wraith', 'wraith'],
+  siren:    ['siren', 'siren', 'siren', 'siren'],
   hive:     ['drone', 'drone', 'drone', 'drone'],
   dragon:   ['dragon'],
 };

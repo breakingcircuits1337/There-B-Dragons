@@ -172,7 +172,20 @@ const Port = (() => {
     if (isl.id === 'wreckers' && G.rumorsHeard.frag1 && !G.fragmentFrom.wreckers) {
       html += `<button id="dig">⛏ Follow the wrecker's tale — dig on the north beach</button>`;
     }
-    if (!localRumors.length && !(isl.id === 'wreckers' && G.rumorsHeard.frag1 && !G.fragmentFrom.wreckers)) {
+    // Bonechapel: Ashen Order amber premium and hidden charts
+    const bonechapelAmber = isl.id === 'bonechapel' && G.cargo.amber > 0;
+    const bonechapelCharts = isl.id === 'bonechapel' && !G.rumorsHeard.frag2;
+    if (bonechapelAmber) {
+      const amberPremium = Math.round(GOODS.amber.base * 3.0);
+      html += `<div class="upg"><em>An Ashen elder approaches without preamble. "The amber speaks to those with ears for it. We would take every crate — triple the common rate, no accounting required."</em></div>
+        <button id="amberSell">⚗ Sell ${G.cargo.amber} hive-amber to the Order (${amberPremium * G.cargo.amber}g total)</button>`;
+    }
+    if (bonechapelCharts) {
+      html += `<button id="ashenCharts">📜 Purchase the Order's sea charts (150g)</button>`;
+    }
+    if (!localRumors.length &&
+        !(isl.id === 'wreckers' && G.rumorsHeard.frag1 && !G.fragmentFrom.wreckers) &&
+        !bonechapelAmber && !bonechapelCharts) {
       html += `<p class="tradetip">${tavernFlavor()}</p>`;
     }
     body.innerHTML = html;
@@ -212,6 +225,33 @@ const Port = (() => {
       SaveGame.save();
       show('tavern');
     });
+    const amberSell = body.querySelector('#amberSell');
+    if (amberSell) amberSell.onclick = () => {
+      const val = Math.round(GOODS.amber.base * 3.0) * G.cargo.amber;
+      G.gold += val;
+      journal(`Sold ${G.cargo.amber} hive-amber to the Ashen Order for ${val}g — triple market rate. They carried the crates off without a word.`);
+      toast(`${val}g from the Order. Their eyes never left the amber.`, 4500);
+      G.cargo.amber = 0;
+      G.rep.ashen = clamp(G.rep.ashen + 12, -100, 100);
+      SFX.play('coin');
+      show('tavern');
+    };
+    const ashenCharts = body.querySelector('#ashenCharts');
+    if (ashenCharts) ashenCharts.onclick = () => {
+      if (G.gold < 150) { toast('The Order does not barter on price.'); return; }
+      G.gold -= 150;
+      G.rumorsHeard.frag2 = true;
+      if (!G.discovered.drowned) {
+        G.discovered.drowned = true;
+        journal('Bought the Order\'s sea charts. The Drowned Court is marked — ghost sightings noted in the margin. "Do not avoid it," the elder added quietly, "if you need what it carries."');
+        toast('Drowned Court charted. A ghost ship circles those waters.', 5500);
+      } else {
+        journal('The Order\'s charts confirm the Drowned Court log. The ghost ship\'s captain carried something from inside the Mist itself.');
+        toast('The Order confirms: the ghost ship carries a chart from the Mist.', 4500);
+      }
+      SFX.play('rumor');
+      show('tavern');
+    };
     const reforge = body.querySelector('#reforge');
     if (reforge) reforge.onclick = () => {
       if (G.gold < 150) { toast('The smiths do not work on credit.'); return; }

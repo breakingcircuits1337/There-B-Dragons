@@ -571,6 +571,8 @@ document.querySelectorAll('.overlay .close').forEach(b => {
 // ---- Rendering -------------------------------------------------
 
 let cam = { x: 0, y: 0 };
+let shootingStar = null;
+let shootingStarTimer = rand(120, 240);
 
 function dayFactor() {
   // 1 = noon, 0 = midnight
@@ -597,6 +599,104 @@ function biomeTint() {
   return base.map((v, i) => Math.round(lerp(v, bt[i], t * 0.7)));
 }
 
+function drawStars(w, h, day) {
+  if (day > 0.42) return;
+  const alpha = clamp((0.42 - day) / 0.42, 0, 1);
+  const tile = 72;
+  const cols = Math.ceil(w / tile);
+  const rows = Math.ceil(h / tile);
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  for (let ty = 0; ty < rows; ty++) {
+    for (let tx = 0; tx < cols; tx++) {
+      const seed = ((tx * 2654435761) ^ (ty * 2246822519)) >>> 0;
+      if (seed % 8 !== 0) continue;
+      const ox = seed % tile;
+      const oy = (seed >> 5) % tile;
+      const twinkle = 0.5 + 0.5 * Math.sin(G.time * (0.8 + (seed % 4) * 0.38) + (seed % 628) / 100);
+      const sz = (seed % 3 === 0) ? 1.5 : 1;
+      ctx.globalAlpha = alpha * twinkle * 0.82;
+      ctx.beginPath();
+      ctx.arc(tx * tile + ox, ty * tile + oy, sz, 0, TAU);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawAurora(w, h, day) {
+  if (day > 0.22) return;
+  const nearMist = clamp(1 - (G.ship.y - WORLD.MIST_Y) / 1000, 0, 1);
+  if (nearMist < 0.05) return;
+  const strength = clamp((0.22 - day) / 0.22, 0, 1) * nearMist;
+  const t = G.time * 0.15;
+  ctx.save();
+  const curtains = [
+    { xfrac: 0.22, color: '0,220,180',   w: 0.12 },
+    { xfrac: 0.52, color: '60,180,255',  w: 0.15 },
+    { xfrac: 0.78, color: '180,100,255', w: 0.10 },
+  ];
+  for (let i = 0; i < curtains.length; i++) {
+    const c = curtains[i];
+    const cx = (c.xfrac + Math.sin(t + i * 1.7) * 0.06) * w;
+    const cw = (c.w + Math.sin(t * 1.3 + i) * 0.02) * w;
+    const ch = h * (0.38 + Math.sin(t * 0.9 + i * 0.8) * 0.06);
+    const grad = ctx.createLinearGradient(0, 0, 0, ch);
+    grad.addColorStop(0, `rgba(${c.color},0)`);
+    grad.addColorStop(0.15, `rgba(${c.color},${(strength * 0.38).toFixed(2)})`);
+    grad.addColorStop(0.6, `rgba(${c.color},${(strength * 0.16).toFixed(2)})`);
+    grad.addColorStop(1, `rgba(${c.color},0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - cw / 2, 0, cw, ch);
+  }
+  ctx.restore();
+}
+
+function updateShootingStar(dt) {
+  if (dayFactor() > 0.3) { shootingStar = null; shootingStarTimer = rand(80, 160); return; }
+  if (shootingStar) {
+    shootingStar.t += dt;
+    if (shootingStar.t >= shootingStar.dur) shootingStar = null;
+  } else {
+    shootingStarTimer -= dt;
+    if (shootingStarTimer <= 0) {
+      shootingStarTimer = rand(90, 200);
+      const sx = rand(0.1, 0.9) * canvas.width;
+      const sy = rand(0.05, 0.38) * canvas.height;
+      const len = rand(80, 150);
+      const a = Math.PI * 0.35 + rand(-0.22, 0.22);
+      shootingStar = { x: sx, y: sy, tx: sx + Math.cos(a) * len, ty: sy + Math.sin(a) * len, t: 0, dur: rand(0.9, 1.5) };
+      const msgs = [
+        'A falling star drags white fire across the northern sky.',
+        'The crew watches a star fall toward the Mist. No one speaks.',
+        '"Make a wish, Captain," the bard calls down from the rigging.',
+      ];
+      if (Math.random() < 0.55) journal('At sea: ' + pick(msgs));
+    }
+  }
+}
+
+function drawShootingStar() {
+  if (!shootingStar) return;
+  const s = shootingStar;
+  const prog = s.t / s.dur;
+  const alpha = prog < 0.15 ? prog / 0.15 : clamp(1 - (prog - 0.15) / 0.85, 0, 1);
+  const cx = lerp(s.x, s.tx, prog);
+  const cy = lerp(s.y, s.ty, prog);
+  const grad = ctx.createLinearGradient(s.x, s.y, cx, cy);
+  grad.addColorStop(0, 'rgba(255,255,255,0)');
+  grad.addColorStop(0.5, `rgba(220,230,255,${(alpha * 0.8).toFixed(2)})`);
+  grad.addColorStop(1, `rgba(255,255,255,${(alpha * 0.95).toFixed(2)})`);
+  ctx.save();
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(s.x, s.y);
+  ctx.lineTo(cx, cy);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function render() {
   const w = canvas.width, h = canvas.height;
   cam.x = clamp(G.ship.x - w / 2, 0, WORLD.W - w);
@@ -608,11 +708,14 @@ function render() {
   ctx.fillStyle = `rgb(${Math.round(r0 * dayMul)},${Math.round(g0 * dayMul)},${Math.round(b0 * dayMul)})`;
   ctx.fillRect(0, 0, w, h);
 
+  drawStars(w, h, day);
+  drawAurora(w, h, day);
   drawWaves(w, h, day);
   if (day < 0.35) drawPlankton(w, h, day);
   for (const isl of ISLANDS) drawIsland(isl);
   Naval.render(ctx, cam);
   drawPlayerShip();
+  drawShootingStar();
   if (inMist()) drawMist(w, h);
   drawHud();
 }
@@ -763,8 +866,10 @@ function drawHud() {
   const s = G.ship;
   const knots = (s.speed / 9).toFixed(1);
   const shotLabels = { round: '⚫ Round', chain: '⛓ Chain', grape: '💥 Grape' };
+  const dayT = (G.time % WORLD.DAY_LENGTH) / WORLD.DAY_LENGTH;
+  const timeIcon = dayT < 0.15 || dayT > 0.85 ? '🌙' : dayT < 0.28 ? '🌅' : dayT < 0.72 ? '☀' : '🌇';
   hud.innerHTML =
-    `<div>⛵ Sail ${(s.sail * 100) | 0}% · ${knots} kn</div>` +
+    `<div>${timeIcon} Sail ${(s.sail * 100) | 0}% · ${knots} kn</div>` +
     `<div>🛡 Hull <span class="${s.hull < s.maxHull * 0.3 ? 'danger' : ''}">${Math.ceil(s.hull)}/${s.maxHull}</span></div>` +
     `<div>💰 ${G.gold} gold · 📦 ${totalCargo()}/${G.cargoCap}</div>` +
     `<div>🗺 Fragments ${G.fragments}/3</div>` +
@@ -868,13 +973,15 @@ function frame(now) {
     if (stormWarnCooldown > 0) stormWarnCooldown -= dt;
     const se = Naval.stormEffect(G.ship.x, G.ship.y);
     if (se > 0.25 && G.ship.sail > 0.3) {
-      G.ship.hull = Math.max(0, G.ship.hull - se * 1.8 * dt);
+      const stormMult = G.upgrades.sails3 ? 0.3 : 1;
+      G.ship.hull = Math.max(0, G.ship.hull - se * 1.8 * dt * stormMult);
       if (G.ship.hull <= 0) { G.ship.hull = 0; onPlayerDefeat(); }
       else if (se > 0.5 && stormWarnCooldown <= 0) {
         stormWarnCooldown = 8;
         toast('⛈ Storm! Lower your sails or the hull won\'t hold!', 4000);
       }
     }
+    updateShootingStar(dt);
     MistVoyage.update(dt);
     saveTimer += dt;
     if (saveTimer > 20) { saveTimer = 0; SaveGame.save(); }

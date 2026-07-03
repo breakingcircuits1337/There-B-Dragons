@@ -203,7 +203,7 @@ const UPGRADES = [
   { id: 'hull2',   name: 'Oaken Hull (Tier 2)',   cost: 800,  requires: null,    desc: 'Max hull 100 → 150.' },
   { id: 'hull3',   name: 'Ironwood Hull (Tier 3)',cost: 2200, requires: 'hull2', desc: 'Max hull 150 → 220.' },
   { id: 'sails2',  name: 'Silk Sails',            cost: 600,  requires: null,    desc: '+20% top speed.' },
-  { id: 'sails3',  name: 'Stormweave Sails',      cost: 1800, requires: 'sails2',desc: '+40% top speed, better into the wind.' },
+  { id: 'sails3',  name: 'Stormweave Sails',      cost: 1800, requires: 'sails2',desc: '+40% top speed, better into the wind, 70% storm damage resistance.' },
   { id: 'guns2',   name: 'Double Battery',        cost: 900,  requires: null,    desc: 'Broadsides fire 3 balls per side.' },
   { id: 'guns3',   name: 'Enchanted Shot',        cost: 2400, requires: 'guns2', desc: '+50% cannon damage, faster reload.' },
   { id: 'cargo2',  name: 'Deep Hold',             cost: 500,  requires: null,    desc: 'Cargo capacity 20 → 40.' },

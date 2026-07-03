@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>There Be Dragons</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="sea"></canvas>
+
+<!-- HUD -->
+<div id="hudLeft" class="hud"></div>
+<div id="compass" class="hud">
+  <div class="rose">N</div>
+  <div class="needle"></div>
+  <div class="wlabel"></div>
+</div>
+<div id="hint"></div>
+<div id="toast"></div>
+<div id="hudHelp" class="hud">[W/S] sails · [A/D] helm · [Space] broadside · [B] board · [E] dock · [M] chart · [J] journal · [R] reputation</div>
+
+<!-- Title screen -->
+<div id="title" class="overlay">
+  <div class="panel title-panel">
+    <h1>THERE BE DRAGONS</h1>
+    <p class="subtitle">an open-sea action-RPG of piracy, tall tales, and the Mist that ate the north</p>
+    <div class="titlebody">
+      <p>The dragons did not die out. They <em>left</em> — behind a wall of Mist no chart survives.
+      Three fragments of one master chart remain, scattered across the sea. Find them.
+      Sail north. Learn why.</p>
+      <p class="keys">Sail with <b>W/A/S/D</b> — the wind matters, tack across it. Fire broadsides with <b>Space</b>,
+      board crippled ships with <b>B</b>, dock with <b>E</b>. Rumors are bought in taverns. Reputation has teeth.</p>
+    </div>
+    <p class="pressstart">— press <b>Enter</b> to set sail —</p>
+    <p id="loadHint" class="pressstart small">press <b>L</b> to resume your last voyage</p>
+  </div>
+</div>
+
+<!-- Chart / journal / reputation overlays -->
+<div id="chart" class="overlay">
+  <div class="panel">
+    <h2>🗺 Captain's Chart <button class="close">✖</button></h2>
+    <canvas id="chartCanvas"></canvas>
+  </div>
+</div>
+<div id="journal" class="overlay">
+  <div class="panel">
+    <h2>📖 Captain's Journal <button class="close">✖</button></h2>
+    <div id="journalBody" class="scrollbody"></div>
+  </div>
+</div>
+<div id="reputation" class="overlay">
+  <div class="panel">
+    <h2>🏴 Standing <button class="close">✖</button></h2>
+    <div id="repBody"></div>
+  </div>
+</div>
+
+<!-- Port -->
+<div id="port" class="overlay"></div>
+
+<!-- Boarding combat -->
+<div id="boarding" class="overlay">
+  <div class="panel combat">
+    <h2 class="title"></h2>
+    <div class="battlefield">
+      <div class="party"></div>
+      <div class="vs">⚔</div>
+      <div class="enemies"></div>
+    </div>
+    <div class="effects"></div>
+    <div class="actions"></div>
+    <div class="blog"></div>
+  </div>
+</div>
+
+<!-- Story events / endings -->
+<div id="event" class="overlay"></div>
+
+<script src="js/data.js"></script>
+<script src="js/save.js"></script>
+<script src="js/boarding.js"></script>
+<script src="js/naval.js"></script>
+<script src="js/port.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

@@ -178,6 +178,8 @@ const ENEMY_TYPES = {
   siren:    { name: 'Mist Siren',     maxHp: 36,  atk: [8, 13] },
   tribal:   { name: 'Tribal Warrior', maxHp: 38,  atk: [9, 14] },
   chief:    { name: 'Cannibal Chief', maxHp: 98,  atk: [15, 22] },
+  tentacle:  { name: 'Kraken Tentacle', maxHp: 45,  atk: [10, 16] },
+  krakenmaw: { name: 'The Kraken',      maxHp: 280, atk: [18, 28], boss: true },
   dragon:   { name: 'The Last Dragon', maxHp: 420, atk: [16, 26], boss: true },
 };
 
@@ -191,6 +193,7 @@ const BOARDING_CREWS = {
   siren:    ['siren', 'siren', 'siren', 'siren'],
   hive:     ['drone', 'drone', 'drone', 'drone'],
   cannibal: ['tribal', 'tribal', 'tribal', 'chief'],
+  kraken:   ['tentacle', 'tentacle', 'tentacle', 'krakenmaw'],
   dragon:   ['dragon'],
 };
 

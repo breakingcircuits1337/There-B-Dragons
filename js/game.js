@@ -769,6 +769,8 @@ function drawHud() {
     `<div>💰 ${G.gold} gold · 📦 ${totalCargo()}/${G.cargoCap}</div>` +
     `<div>🗺 Fragments ${G.fragments}/3</div>` +
     `<div class="shottype">[G] ${shotLabels[G.shotType || 'round']}</div>`;
+  const stormPct = Math.round(Naval.stormEffect(G.ship.x, G.ship.y) * 100);
+  if (stormPct > 20) hud.innerHTML += `<div class="${stormPct > 50 ? 'danger' : ''}">⛈ Storm (${stormPct}%)</div>`;
 
   // compass with wind needle — spins uselessly in the Mist
   const compass = document.getElementById('compass');
@@ -851,6 +853,7 @@ function showTitle() {
 
 let last = performance.now();
 let saveTimer = 0;
+let stormWarnCooldown = 0;
 
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
@@ -861,6 +864,17 @@ function frame(now) {
     updateWind(dt);
     updateShip(dt);
     Naval.update(dt);
+    // Storm hull damage when sails are raised into the squall
+    if (stormWarnCooldown > 0) stormWarnCooldown -= dt;
+    const se = Naval.stormEffect(G.ship.x, G.ship.y);
+    if (se > 0.25 && G.ship.sail > 0.3) {
+      G.ship.hull = Math.max(0, G.ship.hull - se * 1.8 * dt);
+      if (G.ship.hull <= 0) { G.ship.hull = 0; onPlayerDefeat(); }
+      else if (se > 0.5 && stormWarnCooldown <= 0) {
+        stormWarnCooldown = 8;
+        toast('⛈ Storm! Lower your sails or the hull won\'t hold!', 4000);
+      }
+    }
     MistVoyage.update(dt);
     saveTimer += dt;
     if (saveTimer > 20) { saveTimer = 0; SaveGame.save(); }

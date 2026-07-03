@@ -15,6 +15,10 @@ const Naval = (() => {
   let encounterTimer = 0;
   let leviathanTimer = 0;
   let leviathanDone = false;
+  let storms = [];
+  let stormTimer = 0;
+  let krakenTimer = 0;
+  let krakenFought = false;
 
   const ROLES = {
     merchant: { hull: 60,  speed: 55, color: '#8a6f4a', flag: FACTIONS.merchant.flag, range: 0,   dmg: [0, 0],  gold: [60, 140],  cargoLoot: 6 },
@@ -30,6 +34,8 @@ const Naval = (() => {
     encounterTimer = rand(30, 55);
     leviathanTimer = rand(240, 420);
     leviathanDone = false;
+    storms = []; stormTimer = rand(90, 160);
+    krakenTimer = rand(480, 720); krakenFought = false;
     spawnGhost();
   }
 
@@ -116,6 +122,36 @@ const Naval = (() => {
       }
     }
 
+    // moving squalls — damage hull when sails are raised above 30%
+    if (!inMist()) {
+      stormTimer -= dt;
+      if (stormTimer <= 0 && storms.length < 2) {
+        stormTimer = rand(80, 130);
+        spawnStorm();
+      }
+      for (const s of storms) {
+        s.x += s.vx * dt; s.y += s.vy * dt;
+        s.age += dt;
+        s.lightning = Math.max(0, s.lightning - dt * 3);
+        if (Math.random() < 0.006 * dt * 60) {
+          s.lightning = rand(0.4, 1);
+          s.boltX = rand(-s.r * 0.5, s.r * 0.5);
+          s.boltMid = rand(-20, 20);
+          s.boltMid2 = rand(-10, 10);
+        }
+      }
+      storms = storms.filter(s => s.age < s.maxAge && dist(s.x, s.y, G.ship.x, G.ship.y) < 2800);
+    }
+
+    // Kraken: once per session, in open deep water
+    if (!krakenFought && !inMist() && G.mode === 'sail') {
+      krakenTimer -= dt;
+      if (krakenTimer <= 0) {
+        krakenTimer = rand(600, 900);
+        if (ISLANDS.every(isl => dist(G.ship.x, G.ship.y, isl.x, isl.y) > 600)) summonKraken();
+      }
+    }
+
     for (const s of ships) updateShipAI(s, dt);
     updateBalls(dt);
     updateSmoke(dt);
@@ -147,6 +183,86 @@ const Naval = (() => {
     const enc = { type, x, y, r: 55, active: true, goodId: null };
     if (type === 'market') enc.goodId = pick(Object.keys(GOODS));
     encounters.push(enc);
+  }
+
+  function spawnStorm() {
+    const a = G.wind.dir + Math.PI + rand(-0.4, 0.4); // approach from upwind
+    const d = rand(700, 1100);
+    const x = clamp(G.ship.x + Math.cos(a) * d, 200, WORLD.W - 200);
+    const y = clamp(G.ship.y + Math.sin(a) * d, WORLD.MIST_Y + 120, WORLD.H - 200);
+    const spd = rand(38, 62);
+    storms.push({
+      x, y, r: rand(260, 420),
+      vx: Math.cos(G.wind.dir) * spd, vy: Math.sin(G.wind.dir) * spd,
+      age: 0, maxAge: rand(80, 140),
+      lightning: 0, boltX: 0, boltMid: 0, boltMid2: 0,
+    });
+  }
+
+  function stormEffect(px, py) {
+    let total = 0;
+    for (const s of storms) {
+      const d = dist(px, py, s.x, s.y);
+      if (d < s.r) {
+        const age = s.age / s.maxAge;
+        const envelope = 1 - Math.abs(age - 0.5) * 2;
+        total += (1 - d / s.r) * envelope;
+      }
+    }
+    return clamp(total, 0, 1);
+  }
+
+  function summonKraken() {
+    krakenFought = true;
+    G.mode = 'landfall';
+    G.ship.sail = 0; G.ship.speed = 0;
+    const el = document.getElementById('event');
+    el.innerHTML = `
+      <div class="panel">
+        <h2>🐙 The Kraken Rises</h2>
+        <p>The water goes black and cold. The ship lurches sideways — something vast is surfacing beneath the keel. Beak the size of a barn door. Eyes like amber lanterns burning forty feet down. Tentacles that blot the horizon in three directions. A sound like a ship-bell rung too slowly. It is deciding what to do with you.</p>
+        <div class="choices">
+          <button data-k="fight">⚔ Stand and fight</button>
+          <button data-k="flee" ${totalCargo() < 3 ? 'disabled' : ''}>🚤 Jettison 3 cargo and run${totalCargo() < 3 ? ' (need 3 cargo)' : ''}</button>
+        </div>
+      </div>`;
+    el.classList.add('show');
+    el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+      const c = b.dataset.k;
+      el.classList.remove('show');
+      if (c === 'flee') {
+        let left = 3;
+        for (const k of Object.keys(G.cargo)) {
+          const take = Math.min(G.cargo[k], left);
+          G.cargo[k] -= take; left -= take;
+          if (left <= 0) break;
+        }
+        journal('The Kraken surfaced beneath the keel. We threw three crates overboard and ran hard. The beast took the offering and sank. Those amber eyes — patient as a tide — watched us go.');
+        toast('The Kraken accepts the offering and slides below.', 5000);
+        SFX.play('sink');
+        G.mode = 'sail';
+        SaveGame.save();
+      } else {
+        Boarding.start('kraken', {
+          title: 'The Kraken',
+          intro: 'Tentacles thick as mainmasts arc over the rail. The crew has nowhere to run — there is only the deep on every side. Blades out.',
+          onWin: () => {
+            const gold = randInt(260, 430);
+            G.gold += gold;
+            G.rep.pirate = clamp(G.rep.pirate + 15, -100, 100);
+            G.rep.navy = clamp(G.rep.navy + 5, -100, 100);
+            journal(`Slew the Kraken. The sea ran black for an hour. Salvaged ${gold} gold in merchant coin from its gullet — entire ships reduced to their most durable parts. This will be told in dockside taverns until the end of the age.`);
+            toast(`The Kraken is dead. ${gold} gold from its gullet. The sea is quieter now.`, 6000);
+            SFX.play('levelup');
+          },
+          onLose: () => {
+            G.ship.hull = Math.ceil(G.ship.maxHull * 0.25);
+            journal('The Kraken broke us and then let us go. Some mercies cannot be understood. Hull splintered. Drifted to open water on nerve alone.');
+            toast('The Kraken lets you go — barely. Hull at 25%.', 5500);
+          },
+        });
+      }
+    });
   }
 
   function nearestEncounter() {
@@ -430,6 +546,37 @@ const Naval = (() => {
 
   // ---- Render ------------------------------------------------------
 
+  function renderStorms(ctx, cam) {
+    for (const s of storms) {
+      const sx = s.x - cam.x, sy = s.y - cam.y;
+      if (sx < -s.r - 50 || sx > canvas.width + s.r + 50 ||
+          sy < -s.r - 50 || sy > canvas.height + s.r + 50) continue;
+      const age = s.age / s.maxAge;
+      const envelope = 1 - Math.abs(age - 0.5) * 2;
+      const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, s.r);
+      grad.addColorStop(0, `rgba(10,10,20,${(0.72 * envelope).toFixed(2)})`);
+      grad.addColorStop(0.55, `rgba(20,15,30,${(0.42 * envelope).toFixed(2)})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(sx - s.r, sy - s.r, s.r * 2, s.r * 2);
+      if (s.lightning > 0.1) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(220,230,255,${(s.lightning * 0.9).toFixed(2)})`;
+        ctx.lineWidth = s.lightning > 0.7 ? 2 : 1;
+        ctx.shadowColor = 'rgba(180,200,255,0.85)';
+        ctx.shadowBlur = 10;
+        const lx = sx + s.boltX;
+        const ly = sy - s.r * 0.25;
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(lx + s.boltMid, ly + s.r * 0.32);
+        ctx.lineTo(lx + s.boltMid2, ly + s.r * 0.6);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
   function renderEncounters(ctx, cam) {
     for (const enc of encounters) {
       if (!enc.active) continue;
@@ -481,6 +628,7 @@ const Naval = (() => {
   }
 
   function render(ctx, cam) {
+    renderStorms(ctx, cam);
     renderEncounters(ctx, cam);
 
     for (const s of ships) {
@@ -546,5 +694,5 @@ const Naval = (() => {
   }
 
   return { reset, update, render, playerFire, boardable, beginBoarding, nearestEncounter,
-           get ships() { return ships; }, set ships(v) { ships = v; } };
+           stormEffect, get ships() { return ships; }, set ships(v) { ships = v; } };
 })();

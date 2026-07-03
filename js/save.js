@@ -21,11 +21,18 @@ const SaveGame = (() => {
       const raw = localStorage.getItem(KEY);
       if (!raw) return false;
       const data = JSON.parse(raw);
-      const party = PARTY_TEMPLATE.map(t => {
-        const saved = (data.party || []).find(p => p.id === t.id) || {};
+      // rebuild the party from templates (core four + any hired recruits),
+      // in saved order, restoring only the dynamic fields
+      const roster = PARTY_TEMPLATE.concat(RECRUITS);
+      const savedParty = (data.party && data.party.length)
+        ? data.party
+        : PARTY_TEMPLATE.map(t => ({ id: t.id }));
+      const party = savedParty.map(saved => {
+        const t = roster.find(r => r.id === saved.id);
+        if (!t) return null;
         return { ...t, hp: saved.hp ?? t.maxHp, mp: saved.mp ?? t.maxMp,
                  maxHp: saved.maxHp ?? t.maxHp, maxMp: saved.maxMp ?? t.maxMp };
-      });
+      }).filter(Boolean);
       G = { ...newGameState(), ...data, party, mode: 'sail' };
       Naval.reset();
       return true;

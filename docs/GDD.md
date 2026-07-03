@@ -43,7 +43,7 @@ read wind → set sail/heading → spot sail or shore →
 
 **Progression** ✅ (simplified): party-level XP from boarding victories; each level +8 max HP, +1 max MP, +12% damage. Full game: per-class skill trees (3 branches × 10 nodes), gear tiers I–V, and a captain "Legend" meta-track fed by reputation deeds (first kraken, first false-flag heist, etc.).
 
-**Recruitment:** 6–8 recruitable crew across islands, 2 active slots, each with a loyalty questline and a unique ability (e.g., the Frostholm harpooneer's *Leviathan Lure*). *(Full game only.)*
+**Recruitment** ✅ (2 of the planned 6–8): tavern hires for a 300g bounty, party max 6. **Sigrid Whalebone** (Frostholm Harpooneer — *Harpoon Throw*, *Leviathan Lure* stun; loyalty arc: reforge her star-iron harpoon at Cinderpeak) and **Ashka of the Green Maw** (Verdant Maw Beast-Charmer — *Gullstorm* AoE, *Calm the Beast* stun; loyalty arc: bring her to Amberreach, where she can resolve the hive encounter peacefully — fragment and amber without a fight, and hive reputation gained instead of lost). Boarding enemies gain +15% HP per crew member past four, so hiring is power, not just safety. Full game target remains 6–8 recruitables with voiced loyalty questlines.
 
 ## 4. Ship Systems
 

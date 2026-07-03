@@ -21,9 +21,12 @@ const Boarding = (() => {
     opts = options || {};
     round = 0;
     effects = { shanty: 0, dirge: 0, smoke: 0, parry: false };
+    // a larger boarding party emboldens the defenders
+    const scale = 1 + 0.15 * Math.max(0, G.party.length - 4);
     enemies = BOARDING_CREWS[crewKey].map((t, i) => {
       const E = ENEMY_TYPES[t];
-      return { ...E, hp: E.maxHp, idx: i, type: t };
+      const hp = Math.round(E.maxHp * scale);
+      return { ...E, maxHp: hp, hp, idx: i, type: t, stunned: false };
     });
     for (const m of G.party) m.mp = m.maxMp; // fresh powder for every action
     turnIdx = firstAlive();
@@ -59,7 +62,7 @@ const Boarding = (() => {
 
     box.querySelector('.enemies').innerHTML = enemies.map((e, i) => `
       <div class="unit enemy ${e.hp <= 0 ? 'dead' : ''} ${pendingAbility && e.hp > 0 ? 'targetable' : ''}" data-i="${i}">
-        <div class="uname">${e.name}${e.boss ? ' 🐉' : ''}</div>
+        <div class="uname">${e.name}${e.boss ? ' 🐉' : ''}${e.stunned ? ' 💫' : ''}</div>
         <div class="bar hp"><i style="width:${clamp(e.hp / e.maxHp, 0, 1) * 100}%"></i><span>${Math.max(0, e.hp)}/${e.maxHp}</span></div>
       </div>`).join('');
 
@@ -111,13 +114,13 @@ const Boarding = (() => {
     const ab = active.abilities.find(a => a.id === actionId);
     if (!ab || active.mp < ab.cost) return;
     // untargeted abilities resolve immediately
-    if (['parry', 'smoke', 'shanty', 'dirge', 'springs', 'bomb'].includes(actionId)) {
+    if (['parry', 'smoke', 'shanty', 'dirge', 'springs', 'bomb', 'gullstorm'].includes(actionId)) {
       active.mp -= ab.cost;
       resolveUntargeted(actionId, active);
       endMemberTurn();
       return;
     }
-    pendingAbility = actionId; // flurry, tidal need a target
+    pendingAbility = actionId; // flurry, tidal, harpoon, lure, calm need a target
     draw();
   }
 
@@ -145,6 +148,17 @@ const Boarding = (() => {
         for (let n = 0; n < 3 && e.hp > 0; n++) hitEnemy(e, dmgRoll([6, 9]), `Flurry cut ${n + 1}`);
       } else if (pendingAbility === 'tidal') {
         hitEnemy(e, dmgRoll([16, 24]), 'Tidal Lash crashes down');
+      } else if (pendingAbility === 'harpoon') {
+        hitEnemy(e, dmgRoll(G.loyalty.sigrid ? [26, 36] : [18, 26]),
+          G.loyalty.sigrid ? 'The star-iron harpoon strikes true' : 'The harpoon strikes');
+      } else if (pendingAbility === 'lure') {
+        if (e.boss) log('The dragon is no prey animal — the lure is ignored.');
+        else { e.stunned = true; log(`${e.name} whirls toward the false leviathan — it will lose its next turn.`); }
+        SFX.play('buff');
+      } else if (pendingAbility === 'calm') {
+        if (e.boss) log('«I am not a beast, little charmer.» The dragon is unmoved.');
+        else { e.stunned = true; log(`${e.name} goes glassy-eyed and still — it will lose its next turn.`); }
+        SFX.play('buff');
       }
     }
     pendingAbility = null;
@@ -168,6 +182,14 @@ const Boarding = (() => {
       for (const e of enemies) {
         if (e.hp <= 0) continue;
         hitEnemy(e, dmgRoll([10, 15]), 'The bomb blast hits');
+      }
+    }
+    if (id === 'gullstorm') {
+      SFX.play('buff');
+      const range = G.loyalty.ashka ? [12, 17] : [8, 12];
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        hitEnemy(e, dmgRoll(range), 'The gullstorm rakes');
       }
     }
   }
@@ -203,6 +225,11 @@ const Boarding = (() => {
   }
 
   function enemyAct(e) {
+    if (e.stunned) {
+      e.stunned = false;
+      log(`${e.name} stands dazed and loses its turn.`);
+      return;
+    }
     const living = G.party.filter(m => m.hp > 0);
     if (!living.length) return;
     const mult = (effects.dirge > 0 ? 0.7 : 1);

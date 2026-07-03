@@ -58,6 +58,7 @@ function newGameState() {
     fragmentFrom: {},       // island id -> fragment collected there
     mistTimer: 0,           // seconds spent in the Mist on the true voyage
     mistEvents: { morale: false, sirens: false, singing: false },
+    loyalty: { sigrid: false, ashka: false },   // recruit loyalty arcs resolved
     party: PARTY_TEMPLATE.map(p => ({ ...p, hp: p.maxHp, mp: p.maxMp, level: 1 })),
     partyXp: 0, partyLevel: 1,
     kills: 0, plunders: 0,
@@ -226,6 +227,40 @@ function landfall(isl) {
     return;
   }
   if (isl.id === 'amberreach') {
+    const ashka = G.party.find(m => m.id === 'ashka');
+    // Ashka's loyalty arc: she can walk into the hive that sang in her dreams
+    if (ashka && !G.loyalty.ashka) {
+      G.mode = 'landfall';
+      const already = G.fragmentFrom.amberreach;
+      const el = document.getElementById('event');
+      el.innerHTML = `
+        <div class="panel">
+          <h2>The Humming Isle</h2>
+          <p>Ashka is over the rail before the anchor bites. The swarm descends — and stops. She raises both hands and hums back, the same three notes she has been humming in her sleep since Verdant Maw. ${already
+            ? 'The drones circle the scorch-marks your last visit left, and her shoulders drop. She kneels a long while among the broken comb, and when she rises the swarm settles on her arms like falconry birds.'
+            : 'One drone lands on her wrist, weightless as a lantern moth. Then, deliberately, the swarm parts — opening a path straight to the great comb, and the amber-sealed thing inside it.'}</p>
+          <div class="choices"><button id="ashkaok">${already ? 'Stand vigil with her' : 'Walk the open path'}</button></div>
+        </div>`;
+      el.classList.add('show');
+      el.querySelector('#ashkaok').onclick = () => {
+        el.classList.remove('show');
+        G.loyalty.ashka = true;
+        if (already) {
+          G.rep.hive = clamp(G.rep.hive + 25, -100, 100);
+          journal('Ashka made what peace can be made at Amberreach. The hive named her friend anyway. Her gullstorms fly with borrowed wings now.');
+          toast('Ashka is named Hivefriend. Her Gullstorm strikes harder.', 5000);
+        } else {
+          G.rep.hive = clamp(G.rep.hive + 15, -100, 100);
+          G.cargo.amber = Math.min(G.cargoCap - totalCargo() + G.cargo.amber, G.cargo.amber + 4);
+          grantFragment('amberreach', 'Lifted from the great comb with the hive\'s blessing, not a drop of blood spilled: a chart fragment sealed in amber. Ashka wept. The swarm sang.');
+          journal('The hive named Ashka friend and let the chart go freely. Not every treasure needs a fight.');
+        }
+        SFX.play('levelup');
+        G.mode = 'sail';
+        SaveGame.save();
+      };
+      return;
+    }
     if (G.fragmentFrom.amberreach) { toast('The hive watches you leave in peace.'); return; }
     G.mode = 'landfall';
     Boarding.start('hive', {

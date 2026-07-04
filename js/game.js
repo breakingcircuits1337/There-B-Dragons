@@ -230,7 +230,27 @@ function handleKey(e) {
 function landfall(isl) {
   if (isl.id === 'wreckers') return; // is a port, handled elsewhere
   if (isl.id === 'drowned') {
-    toast('The Drowned Court is silent. The ghost ship that guards it sails these waters — sink it to claim its log.');
+    if (G.fragmentFrom.drowned) {
+      toast('The ghost ship is gone. The Drowned Court is quiet now, its spires slowly sinking. Your log is the last thing that left these waters.');
+    } else {
+      G.mode = 'landfall';
+      const ev = document.getElementById('event');
+      ev.innerHTML = `
+        <div class="panel">
+          <h2>The Drowned Court</h2>
+          <p>Half-submerged palace spires claw up from the green water, trailing kelp like funeral banners. Salt has eaten the carvings. Something lived here, once — something that cared about architecture. The silence is total except for one thing: a slow circuit in the fog, the sound of rigging that should not be moving.</p>
+          <p>A wraith-hull circles the ruins. Pale lanterns. A flag that has no color anymore. It has not stopped moving in a very long time.</p>
+          <div class="choices">
+            <button id="drownedsail">⛵ Back to open water — come at the ghost ship from sea</button>
+          </div>
+        </div>`;
+      ev.classList.add('show');
+      ev.querySelector('#drownedsail').onclick = () => {
+        ev.classList.remove('show');
+        G.mode = 'sail';
+        toast('The ghost ship circles these waters. Cripple it with cannon, then board or sink it.');
+      };
+    }
     return;
   }
   if (isl.id === 'amberreach') {

@@ -236,8 +236,19 @@ const Boarding = (() => {
     if (!living.length) return;
     const mult = (effects.dirge > 0 ? 0.7 : 1);
     if (e.boss && round % 3 === 2) {
-      log('The dragon draws breath — FIRE SWEEPS THE BLACK SAND!', 'boss');
-      for (const m of living) applyHit(e, m, 0.7 * mult, 'dragonfire');
+      let bossMsg, hitTag;
+      if (e.type === 'krakenmaw') {
+        bossMsg = 'Tentacles arc over every rail — the Kraken crushes everything it can reach!';
+        hitTag = 'crush';
+      } else if (e.type === 'vaelghost') {
+        bossMsg = 'Ida Vael rises through the deck — cold spectral steel cuts at everything at once!';
+        hitTag = 'spectral';
+      } else {
+        bossMsg = 'The dragon draws breath — FIRE SWEEPS THE BLACK SAND!';
+        hitTag = 'dragonfire';
+      }
+      log(bossMsg, 'boss');
+      for (const m of living) applyHit(e, m, 0.7 * mult, hitTag);
       return;
     }
     const target = pick(living);
@@ -253,7 +264,11 @@ const Boarding = (() => {
     if (m.id === 'captain' && effects.parry) dmg = Math.ceil(dmg / 2);
     m.hp -= dmg;
     SFX.play('sword');
-    log(`${e.name} ${tag === 'dragonfire' ? 'burns' : 'hits'} ${m.name} for ${dmg}.`, tag ? 'boss' : '');
+    const verb = tag === 'dragonfire' ? 'burns'
+               : tag === 'crush'     ? 'crushes'
+               : tag === 'spectral'  ? 'cuts through'
+               : 'hits';
+    log(`${e.name} ${verb} ${m.name} for ${dmg}.`, tag ? 'boss' : '');
     if (m.hp <= 0) { m.hp = 0; log(`${m.name} falls!`, 'kill'); }
   }
 

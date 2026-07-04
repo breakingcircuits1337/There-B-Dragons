@@ -513,11 +513,14 @@ const Naval = (() => {
       : s.role === 'hunter' ? 'hunter'
       : s.role === 'navy' ? 'navy'
       : s.role === 'pirate' ? 'pirate' : 'merchant';
-    Boarding.start(crewKey, {
-      title: `Boarding the ${s.label}`,
-      intro: s.grapeSoft
+    const intro = s.role === 'ghost'
+      ? 'The hulls meet with a sound like a bell swallowed by fog. Things in tattered oilskin haul themselves over the rail — they have no breath, no blood, and nothing left to lose. Somewhere in that wraith-fog, the captain\'s log waits.'
+      : s.grapeSoft
         ? 'Grape shot swept the deck before your crew boarded — the defenders are already bloodied and scattered.'
-        : 'Grapnels bite, hulls grind together, and your crew pours over the rail with steel drawn.',
+        : 'Grapnels bite, hulls grind together, and your crew pours over the rail with steel drawn.';
+    Boarding.start(crewKey, {
+      title: s.role === 'ghost' ? 'The Drowned Court — Ghost Ship' : `Boarding the ${s.label}`,
+      intro,
       grapeDebuff: s.grapeSoft,
       onWin: () => {
         G.plunders++;
@@ -535,7 +538,9 @@ const Naval = (() => {
         s.hull = 0;
         ships = ships.filter(x => x !== s);
         if (s.role === 'ghost') {
-          grantFragment('drowned', 'You pried the log from the wraith-captain\'s grip yourself.');
+          journal('The last wraith dissolved into salt-foam. In the captain\'s cabin, undisturbed for decades: the log. The final pages chart the Mist in a hand that was still steady at the end.');
+          toast('The ghost crew is gone. The captain\'s log is yours.', 5000);
+          grantFragment('drowned', 'Taken by force from the ghost captain\'s cabin at the Drowned Court.');
         } else {
           journal(`Took the ${s.label} by the sword: ${gold} gold, ${looted} crates of cargo.`);
           toast(`Deck taken! ${gold} gold, ${looted} cargo.`, 4500);

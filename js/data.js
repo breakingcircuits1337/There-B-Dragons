@@ -108,6 +108,12 @@ const ISLANDS = [
     color: '#8a7a5a', desc: 'A half-submerged atoll of blackened coral. Iron rings rust in the rock — someone moored here, for a long time.',
     priceMod: {},
   },
+  {
+    id: 'watcher', name: "The Watcher's Spire", biome: 'ruin', faction: null,
+    x: 2750, y: 920, r: 75, port: false, hidden: true,
+    color: '#b0a890', desc: 'A sheer sea-stack crowned with a lighthouse that should have gone dark decades ago. The flame still burns.',
+    priceMod: {},
+  },
 ];
 
 // ---- Party & boarding combat ---------------------------------
@@ -256,6 +262,11 @@ const RUMORS = [
     id: 'vael_hook', port: 'gulls', cost: 30,
     text: '”Corsair Queen Ida Vael buried forty thousand gold before they took her to the gallows. Her complete chart was stitched into her cartographer\'s coat. Old Hatch still has the coat — been nursing his regrets at Wreckers\' Shoal for thirty years. Too scared to go himself. Maybe you\'re not.”',
     reveals: null, fragment: null,
+  },
+  {
+    id: 'watcher_rumor', port: 'frostholm', cost: 20,
+    text: '”Two days\' sail east of here there\'s a sea-stack with a lighthouse that should have gone dark thirty years ago. We stopped asking who tends it. Someone is always home, and they always seem to know what the Mist is doing before it does.”',
+    reveals: 'watcher', fragment: null,
   },
 ];
 

@@ -393,6 +393,54 @@ function landfall(isl) {
     return;
   }
 
+  if (isl.id === 'watcher') {
+    G.mode = 'landfall';
+    const ev = document.getElementById('event');
+    const firstVisit = !G.islandEvents.watcher;
+    if (firstVisit) G.islandEvents.watcher = true;
+    const canReveal = G.fragments >= 2 && !G.discovered.dragonisle;
+    ev.innerHTML = `
+      <div class="panel">
+        <h2>The Watcher's Spire</h2>
+        ${firstVisit
+          ? `<p>The sea-stack is sheer black basalt, crowned by a lighthouse that burns with a steady amber flame. The door at the base is open. Inside, an old man sits at a desk covered in charts, star-maps, and something that might be a tide table for the Mist. He does not look up when you enter. "I wondered when someone would come," he says. "Sit down. You look like you've been sailing hard."</p>
+             <p>His name is Orryn. He has been here for thirty-one years. He will not say who stationed him, or whether they still exist. His charts of the Mist are older than his lighthouse, and more detailed than anything you have seen.</p>`
+          : `<p>Orryn is at his desk. The lighthouse flame burns amber-steady above. "Back again," he says, not unkindly. "The sea still talking to you?"</p>`
+        }
+        <div class="choices">
+          <button data-w="rest">🛏 Rest and resupply — the crew needs it</button>
+          ${canReveal
+            ? `<button data-w="mist">📜 Ask about the Mist — you have most of the chart</button>`
+            : `<button data-w="mist" disabled>📜 Ask about the Mist (need 2+ chart fragments first)</button>`
+          }
+          <button data-w="leave">⛵ Back to sea</button>
+        </div>
+      </div>`;
+    ev.classList.add('show');
+    ev.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
+      const c = b.dataset.w;
+      ev.classList.remove('show');
+      if (c === 'leave') { G.mode = 'sail'; return; }
+      if (c === 'rest') {
+        for (const m of G.party) { m.hp = m.maxHp; m.mp = m.maxMp; }
+        G.ship.hull = Math.min(G.ship.maxHull, G.ship.hull + Math.round(G.ship.maxHull * 0.4));
+        journal('Rested at the Watcher\'s Spire. Orryn fed the crew salt fish and hard bread, said nothing more than necessary, and let them sleep under the lamp\'s arc. The hull is patched.');
+        toast('The crew rests. HP and MP fully restored, hull +40%.', 4500);
+        SFX.play('heal');
+        G.mode = 'sail';
+        SaveGame.save();
+      } else if (c === 'mist') {
+        G.discovered.dragonisle = true;
+        journal('Orryn unrolled his oldest chart. The Mist is not formless — it has a shape, and at its center an island that doesn\'t appear on any chart the Compact has ever published. "The flame watches it," he said. "It watched back, once. That was thirty years ago and I have not been lonely since." He marked the course. Dragon Isle is real.');
+        toast('Orryn charts the path north. Dragon Isle revealed.', 6000);
+        SFX.play('fragment');
+        G.mode = 'sail';
+        SaveGame.save();
+      }
+    });
+    return;
+  }
+
   if (isl.id === 'dragonisle') {
     // the singing is the price of landfall — face it before the shore
     if (!G.mistEvents.singing) { MistVoyage.forceSinging(); return; }
@@ -581,6 +629,32 @@ function resolveEncounter(enc) {
       enc.active = true; // put it back if they decline — they might change their mind
       evEl.classList.remove('show');
     };
+  } else if (enc.type === 'survivor') {
+    const roleData = {
+      merchant: { rep: 'merchant', lore: '"The Compact route east is watched," he says, bailing water with a boot. "Something big running south of Cinderpeak — I thought it was a whale until it turned." He accepts passage without further bargaining.' },
+      navy:     { rep: 'navy',     lore: '"Ship came apart in the storm," the officer says, teeth still chattering. "I won\'t ask what flag you\'re flying." He is silent the rest of the afternoon and gone at the next port.' },
+      pirate:   { rep: 'pirate',   lore: '"My captain put me over the side when the rum ran out," she says cheerfully. "Gratitude, captain. I\'ve got a head full of charts if you need them." She doesn\'t mention which captain.' },
+      islander: { rep: 'islander', lore: '"I followed what I thought was a known current," the old woman says, entirely composed for someone adrift for three days. She says nothing else, but she knows exactly where she is.' },
+    };
+    const r = roleData[enc.role] || roleData.merchant;
+    const heal = Math.round(rand(8, 16) * (1 + (G.partyLevel - 1) * 0.1));
+    for (const m of G.party) if (m.hp > 0) m.hp = Math.min(m.maxHp, m.hp + heal);
+    G.rep[r.rep] = clamp(G.rep[r.rep] + 8, -100, 100);
+    journal(`Rescued a ${enc.role} castaway from a lifeboat. ${r.lore}`);
+    toast(`Survivor rescued — crew morale lifts (+${heal} HP each, +8 ${FACTIONS[r.rep].name} rep).`, 5000);
+    SFX.play('heal');
+  } else if (enc.type === 'flotsam') {
+    const gold = randInt(25, 80);
+    G.gold += gold;
+    let bonusStr = '';
+    if (totalCargo() < G.cargoCap) {
+      const count = Math.min(randInt(1, 3), G.cargoCap - totalCargo());
+      for (let i = 0; i < count; i++) G.cargo[pick(Object.keys(GOODS))]++;
+      if (count > 0) bonusStr = ` + ${count} crate${count > 1 ? 's' : ''} of salvage`;
+    }
+    journal(`Picked through a field of flotsam: ${gold} gold${bonusStr}. Whatever ship left this behind didn't survive to collect it.`);
+    toast(`Flotsam salvaged — ${gold} gold${bonusStr}.`);
+    SFX.play('coin');
   }
 }
 
@@ -1059,6 +1133,8 @@ function drawHud() {
   else if (target) hint.textContent = `[B] Board the crippled ${target.label}!`;
   else if (enc && enc.type === 'wreck') hint.textContent = '[E] Salvage the wreck';
   else if (enc && enc.type === 'market') hint.textContent = '[E] Approach the drifting market';
+  else if (enc && enc.type === 'survivor') hint.textContent = '[E] Rescue the survivor';
+  else if (enc && enc.type === 'flotsam') hint.textContent = '[E] Pick through the flotsam';
   else if (inMist()) hint.textContent = 'The Mist. Instruments fail. Hold your nerve and sail north.';
   else hint.textContent = '';
 }

@@ -28,6 +28,8 @@ const Naval = (() => {
     ghost:    { hull: 160, speed: 60, color: '#7a95a5', flag: '#b0e8e0',              range: 260, dmg: [8, 13], gold: [0, 0],     cargoLoot: 0 },
   };
 
+  const HUNTER_NAMES = ['Blackwood', 'Crane', 'Solano', 'Thatch', 'Moreau', 'Sable', 'Wren', 'Falk'];
+
   function reset() {
     ships = []; balls = []; smoke = []; encounters = [];
     spawnTimer = 0; hunterTimer = 0;
@@ -88,8 +90,12 @@ const Naval = (() => {
       if (hunterTimer <= 0 && ships.filter(s => s.role === 'hunter').length < 2) {
         hunterTimer = 75;
         const a = rand(0, TAU);
-        ships.push(makeShip('hunter', G.ship.x + Math.cos(a) * 1100, G.ship.y + Math.sin(a) * 1100, { label: 'hunter' }));
-        toast('⚠ A hunter flies the red pennant — they have your scent.', 5000);
+        const taken = ships.filter(s => s.captainName).map(s => s.captainName);
+        const available = HUNTER_NAMES.filter(n => !taken.includes(n));
+        const cname = pick(available.length ? available : HUNTER_NAMES);
+        ships.push(makeShip('hunter', G.ship.x + Math.cos(a) * 1100, G.ship.y + Math.sin(a) * 1100,
+          { label: `Captain ${cname}`, captainName: cname }));
+        toast(`⚠ Captain ${cname} flies the red pennant — they have your scent.`, 5000);
       }
     } else {
       hunterTimer = 20;
@@ -179,9 +185,11 @@ const Naval = (() => {
     const d = rand(650, 1050);
     const x = clamp(G.ship.x + Math.cos(a) * d, 100, WORLD.W - 100);
     const y = clamp(G.ship.y + Math.sin(a) * d, WORLD.MIST_Y + 150, WORLD.H - 100);
-    const type = Math.random() < 0.65 ? 'wreck' : 'market';
-    const enc = { type, x, y, r: 55, active: true, goodId: null };
+    const roll = Math.random();
+    const type = roll < 0.40 ? 'wreck' : roll < 0.62 ? 'market' : roll < 0.82 ? 'survivor' : 'flotsam';
+    const enc = { type, x, y, r: 55, active: true, goodId: null, role: null };
     if (type === 'market') enc.goodId = pick(Object.keys(GOODS));
+    if (type === 'survivor') enc.role = pick(['merchant', 'navy', 'pirate', 'islander']);
     encounters.push(enc);
   }
 
@@ -493,6 +501,9 @@ const Naval = (() => {
     if (s.role === 'ghost') {
       journal('The wraith-hull broke apart into cold light. Floating in the wreckage: a captain\'s log, its final pages a chart of the Mist.');
       grantFragment('drowned', 'The ghost ship\'s log charts a course into the Mist.');
+    } else if (s.role === 'hunter' && s.captainName) {
+      journal(`Captain ${s.captainName}'s frigate went down fighting. Salvaged ${gold} gold from the wreck. One less name on the bounty list.`);
+      toast(`Captain ${s.captainName} sunk — ${gold} gold salvaged.`);
     } else {
       journal(`Sank a ${s.label}. Salvaged ${gold} gold from the wreck.`);
       toast(`${s.label} sunk — salvaged ${gold} gold.`);
@@ -515,11 +526,18 @@ const Naval = (() => {
       : s.role === 'pirate' ? 'pirate' : 'merchant';
     const intro = s.role === 'ghost'
       ? 'The hulls meet with a sound like a bell swallowed by fog. Things in tattered oilskin haul themselves over the rail — they have no breath, no blood, and nothing left to lose. Somewhere in that wraith-fog, the captain\'s log waits.'
-      : s.grapeSoft
-        ? 'Grape shot swept the deck before your crew boarded — the defenders are already bloodied and scattered.'
-        : 'Grapnels bite, hulls grind together, and your crew pours over the rail with steel drawn.';
+      : s.role === 'hunter'
+        ? (s.captainName
+          ? `Captain ${s.captainName}'s frigate cuts your wake dead. The boarding party is already on the rail — battle-hardened hunters who know exactly how this ends.`
+          : 'The hunter frigate cuts your wake dead. The boarding party is already on the rail — they\'ve done this before.')
+        : s.grapeSoft
+          ? 'Grape shot swept the deck before your crew boarded — the defenders are already bloodied and scattered.'
+          : 'Grapnels bite, hulls grind together, and your crew pours over the rail with steel drawn.';
+    const title = s.role === 'ghost' ? 'The Drowned Court — Ghost Ship'
+      : s.role === 'hunter' && s.captainName ? `Captain ${s.captainName}'s Pursuit`
+      : `Boarding the ${s.label}`;
     Boarding.start(crewKey, {
-      title: s.role === 'ghost' ? 'The Drowned Court — Ghost Ship' : `Boarding the ${s.label}`,
+      title,
       intro,
       grapeDebuff: s.grapeSoft,
       onWin: () => {
@@ -541,6 +559,9 @@ const Naval = (() => {
           journal('The last wraith dissolved into salt-foam. In the captain\'s cabin, undisturbed for decades: the log. The final pages chart the Mist in a hand that was still steady at the end.');
           toast('The ghost crew is gone. The captain\'s log is yours.', 5000);
           grantFragment('drowned', 'Taken by force from the ghost captain\'s cabin at the Drowned Court.');
+        } else if (s.role === 'hunter' && s.captainName) {
+          journal(`Bested Captain ${s.captainName} in a boarding action. Took ${gold} gold from the hunter frigate. They won't be coming for us again.`);
+          toast(`Captain ${s.captainName} is down! ${gold} gold.`, 4500);
         } else {
           journal(`Took the ${s.label} by the sword: ${gold} gold, ${looted} crates of cargo.`);
           toast(`Deck taken! ${gold} gold, ${looted} cargo.`, 4500);
@@ -627,6 +648,50 @@ const Naval = (() => {
         ctx.fillStyle = 'rgba(255,255,255,0.65)';
         ctx.font = '11px Georgia'; ctx.textAlign = 'center';
         ctx.fillText('drifting market', x, y + 28);
+        ctx.textAlign = 'left';
+
+      } else if (enc.type === 'survivor') {
+        ctx.save();
+        ctx.translate(x, y);
+        // lifeboat hull
+        ctx.fillStyle = '#7a5a35';
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 18, 8, 0, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = '#4a2a0a'; ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // oar
+        ctx.strokeStyle = '#8a6a45'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(14, 0); ctx.stroke();
+        // mast + distress flag
+        ctx.strokeStyle = '#4a2a0a'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(2, 2); ctx.lineTo(2, -14); ctx.stroke();
+        ctx.fillStyle = '#e82020';
+        ctx.fillRect(2, -14, 9, 6);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.font = '11px Georgia'; ctx.textAlign = 'center';
+        ctx.fillText('survivor', x, y + 28);
+        ctx.textAlign = 'left';
+
+      } else if (enc.type === 'flotsam') {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.globalAlpha = 0.78;
+        ctx.fillStyle = '#6a4a20';
+        ctx.fillRect(-15, -8, 12, 10);
+        ctx.fillRect(6, -4, 14, 8);
+        ctx.strokeStyle = '#3a1a00'; ctx.lineWidth = 1;
+        ctx.strokeRect(-15, -8, 12, 10);
+        ctx.strokeRect(6, -4, 14, 8);
+        ctx.fillStyle = '#4a3010';
+        ctx.fillRect(-4, 6, 20, 4);
+        ctx.strokeRect(-4, 6, 20, 4);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.font = '11px Georgia'; ctx.textAlign = 'center';
+        ctx.fillText('flotsam', x, y + 32);
         ctx.textAlign = 'left';
       }
     }

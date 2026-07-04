@@ -102,6 +102,12 @@ const ISLANDS = [
     color: '#4a3a5a', desc: 'The island behind the Mist. Here be dragons.',
     priceMod: {},
   },
+  {
+    id: 'vael_reef', name: "The Corsair's Reef", biome: 'atoll', faction: null,
+    x: 4450, y: 2350, r: 100, port: false, hidden: true,
+    color: '#8a7a5a', desc: 'A half-submerged atoll of blackened coral. Iron rings rust in the rock — someone moored here, for a long time.',
+    priceMod: {},
+  },
 ];
 
 // ---- Party & boarding combat ---------------------------------
@@ -180,7 +186,9 @@ const ENEMY_TYPES = {
   chief:    { name: 'Cannibal Chief', maxHp: 98,  atk: [15, 22] },
   tentacle:  { name: 'Kraken Tentacle', maxHp: 45,  atk: [10, 16] },
   krakenmaw: { name: 'The Kraken',      maxHp: 280, atk: [18, 28], boss: true },
-  dragon:   { name: 'The Last Dragon', maxHp: 420, atk: [16, 26], boss: true },
+  dragon:   { name: 'The Last Dragon',  maxHp: 420, atk: [16, 26], boss: true },
+  skeleton:  { name: "Vael's Deckhand", maxHp: 28,  atk: [6, 10] },
+  vaelghost: { name: 'Ida Vael',        maxHp: 160, atk: [14, 22], boss: true },
 };
 
 // Crew composition when boarding a ship of a given role
@@ -195,6 +203,7 @@ const BOARDING_CREWS = {
   cannibal: ['tribal', 'tribal', 'tribal', 'chief'],
   kraken:   ['tentacle', 'tentacle', 'tentacle', 'krakenmaw'],
   dragon:   ['dragon'],
+  vael:     ['skeleton', 'skeleton', 'skeleton', 'skeleton', 'vaelghost'],
 };
 
 // ---- Shipyard upgrades ---------------------------------------
@@ -240,7 +249,12 @@ const RUMORS = [
   },
   {
     id: 'hunters', port: 'silkwater', cost: 20,
-    text: '“Cross a flag too many times and they don\'t forget. The Navy and the Compact both commission hunter captains. They chase you across the whole chart.”',
+    text: '”Cross a flag too many times and they don\'t forget. The Navy and the Compact both commission hunter captains. They chase you across the whole chart.”',
+    reveals: null, fragment: null,
+  },
+  {
+    id: 'vael_hook', port: 'gulls', cost: 30,
+    text: '”Corsair Queen Ida Vael buried forty thousand gold before they took her to the gallows. Her complete chart was stitched into her cartographer\'s coat. Old Hatch still has the coat — been nursing his regrets at Wreckers\' Shoal for thirty years. Too scared to go himself. Maybe you\'re not.”',
     reveals: null, fragment: null,
   },
 ];

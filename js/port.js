@@ -183,9 +183,16 @@ const Port = (() => {
     if (bonechapelCharts) {
       html += `<button id="ashenCharts">📜 Purchase the Order's sea charts (150g)</button>`;
     }
+    // Old Hatch at Wreckers' Shoal — sells Vael's chart after vael_hook rumor is heard
+    const oldHatch = isl.id === 'wreckers' && G.rumorsHeard.vael_hook && !G.vaelMap;
+    if (oldHatch) {
+      const mapCost = G.rep.pirate >= 40 ? 400 : G.rep.pirate >= 20 ? 600 : 800;
+      html += `<div class="upg"><em>In the corner booth sits a man who looks like a cancelled debt — face like a rope-scar, three empty mugs in front of him. He introduces himself as Hatch. "Heard you been asking about Ida Vael," he says. "I knew her. Had her cartographer\'s coat thirty years. Never had the nerve to follow the chart inside it. You look like you might." He slides a water-stained folded paper across the table.</em></div>
+        <button id="buyMap" ${G.gold < mapCost ? 'disabled' : ''}>🗺 Buy Vael\'s chart from Old Hatch (${mapCost}g)</button>`;
+    }
     if (!localRumors.length &&
         !(isl.id === 'wreckers' && G.rumorsHeard.frag1 && !G.fragmentFrom.wreckers) &&
-        !bonechapelAmber && !bonechapelCharts) {
+        !bonechapelAmber && !bonechapelCharts && !oldHatch) {
       html += `<p class="tradetip">${tavernFlavor()}</p>`;
     }
     body.innerHTML = html;
@@ -250,6 +257,18 @@ const Port = (() => {
         toast('The Order confirms: the ghost ship carries a chart from the Mist.', 4500);
       }
       SFX.play('rumor');
+      show('tavern');
+    };
+    const buyMap = body.querySelector('#buyMap');
+    if (buyMap) buyMap.onclick = () => {
+      const mapCost = G.rep.pirate >= 40 ? 400 : G.rep.pirate >= 20 ? 600 : 800;
+      if (G.gold < mapCost) { toast('You cannot cover the price.'); return; }
+      G.gold -= mapCost;
+      G.vaelMap = true;
+      G.discovered.vael_reef = true;
+      SFX.play('rumor');
+      journal(`Bought Vael's chart from Old Hatch at Wreckers' Shoal for ${mapCost}g. The Corsair's Reef is charted — east of Cinderpeak. Hatch ordered another drink and said nothing more.`);
+      toast("Vael's chart in hand. The Corsair's Reef is now charted.", 5000);
       show('tavern');
     };
     const reforge = body.querySelector('#reforge');

@@ -65,6 +65,7 @@ function newGameState() {
     kills: 0, plunders: 0,
     journal: ['Fitted out at Port Meridian with 150 gold and a restless crew. The taverns whisper that the dragons did not die out — they went somewhere. Behind the Mist.'],
     dragonMet: false,
+    vaelMap: false, vaelDone: false,
     ending: null,
     shotType: 'round',   // 'round' | 'chain' | 'grape'  — cycles with [G]
   };
@@ -111,6 +112,7 @@ function shipMaxSpeed() {
   let v = 95;
   if (G.upgrades.sails2) v *= 1.2;
   if (G.upgrades.sails3) v *= 1.17;
+  if (G.upgrades.vael_compass) v *= 1.08;
   const load = totalCargo() / G.cargoCap;
   v *= 1 - load * 0.18;                   // heavy hold slows you
   return v;
@@ -362,12 +364,155 @@ function landfall(isl) {
     return;
   }
 
+  if (isl.id === 'vael_reef') {
+    if (G.vaelDone) {
+      toast('The reef is stripped bare. Nothing left but coral and rust.');
+      return;
+    }
+    showVaelPassage();
+    return;
+  }
+
   if (isl.id === 'dragonisle') {
     // the singing is the price of landfall — face it before the shore
     if (!G.mistEvents.singing) { MistVoyage.forceSinging(); return; }
     startFinale();
     return;
   }
+}
+
+// ---- The Corsair's Hoard — quest stages -----------------------
+
+function showVaelPassage() {
+  G.mode = 'landfall';
+  const ev = document.getElementById('event');
+  ev.innerHTML = `
+    <div class="panel">
+      <h2>The Corsair's Reef</h2>
+      <p>Blackened coral fingers claw up through the water. The chart shows an approach — a hidden channel through the reef's south side, navigable only at high tide. The tide is coming in. Through the channel you can see a half-buried arch of iron, and beyond it, dark shapes in the sand.</p>
+      <p>An old smugglers' buoy marks the channel mouth. It's been there a long time.</p>
+      <div class="choices">
+        <button data-c="channel">⚓ Take the channel now — careful going (-8 hull)</button>
+        <button data-c="tide">🌊 Heave to and wait for high tide — free passage</button>
+        <button data-c="leave">⛵ Circle the reef again</button>
+      </div>
+    </div>`;
+  ev.classList.add('show');
+  ev.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    const c = b.dataset.c;
+    ev.classList.remove('show');
+    if (c === 'leave') { G.mode = 'sail'; return; }
+    if (c === 'channel') {
+      G.ship.hull = Math.max(1, G.ship.hull - 8);
+      journal("Threaded the channel at Vael's Reef at speed. Scraped the coral going in — eight hull gone, but we're through.");
+      toast('Channel passage: -8 hull. You\'re through the reef.', 4000);
+      SFX.play('damage');
+    } else {
+      journal("Waited for high tide at Vael's Reef. The channel opened clean.");
+      toast('High tide. The channel opens without a scratch.', 3000);
+    }
+    showVaelGuardian();
+  });
+}
+
+function showVaelGuardian() {
+  const ev = document.getElementById('event');
+  ev.innerHTML = `
+    <div class="panel">
+      <h2>The Guardian of the Reef</h2>
+      <p>The beach inside the reef is wrong. The sand is too cold. Rusted weapons lean against the coral like they were set down yesterday. Shapes move in the fog at the tree-line — too tall, too still, wearing oilskin coats with a crossed-cutlass brand.</p>
+      <p>One steps forward. She is translucent at the edges, and her eyes are the color of deep water. "I died with this secret," says Ida Vael, "and I am <em>keeping it</em>."</p>
+      <div class="choices">
+        <button data-c="fight">⚔ "Then we take it from a ghost."</button>
+        <button data-c="tribute" ${G.gold < 200 ? 'disabled' : ''}>🪙 Pay the toll — 200 gold for safe passage${G.gold < 200 ? ' (need 200g)' : ''}</button>
+        <button data-c="leave">⛵ Back to open water</button>
+      </div>
+    </div>`;
+  ev.classList.add('show');
+  ev.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    const c = b.dataset.c;
+    ev.classList.remove('show');
+    if (c === 'leave') { G.mode = 'sail'; return; }
+    if (c === 'tribute') {
+      G.gold -= 200;
+      journal("Paid Ida Vael's toll: 200 gold. She stood aside without a word.");
+      toast('200 gold. Vael nods, and the fog parts.', 3500);
+      SFX.play('coin');
+      showVaelHoard();
+    } else {
+      Boarding.start('vael', {
+        title: "Ida Vael's Last Crew",
+        intro: 'The fog comes alive. Four oilskin dead close the distance before the first blade is drawn. Behind them, the Corsair Queen raises her phantom cutlass — and smiles.',
+        onWin: () => {
+          journal("Fought Ida Vael's ghost crew on the Corsair's Reef. She dissolved into the surf when the last hand fell, laughing. The hoard lay open.");
+          toast('The last ghost dissolves. The reef is yours.', 4000);
+          showVaelHoard();
+        },
+        onLose: () => {
+          journal("Driven off by Ida Vael's ghost crew. The Corsair's Reef does not yield easy.");
+          toast("Vael's crew drives you back. Try again when the party is stronger.", 5000);
+          G.mode = 'sail';
+        },
+      });
+    }
+  });
+}
+
+function showVaelHoard() {
+  const ev = document.getElementById('event');
+  ev.innerHTML = `
+    <div class="panel">
+      <h2>The Corsair's Hoard</h2>
+      <p>Behind the iron arch, half-buried in the coral, is a cave that goes deeper than it should. Chests. Crates. Casks. Forty years of Corsair Queen plunder, untouched since the gallows. There is more here than you can carry — the tide will reclaim most of it. You have to choose what matters.</p>
+      <div class="choices">
+        <button data-c="gold">💰 Fill the hold with gold — pure and simple</button>
+        <button data-c="cargo">📦 Take the mixed cargo — goods and coin together</button>
+        <button data-c="compass">🧭 Vael's ghost-compass — a relic that knows where you want to go</button>
+        <button data-c="split">🤝 Split the hoard fairly — gold and hard-won salt for the whole crew</button>
+      </div>
+    </div>`;
+  ev.classList.add('show');
+  ev.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    const c = b.dataset.c;
+    ev.classList.remove('show');
+    G.vaelDone = true;
+    G.rep.pirate = clamp(G.rep.pirate + 20, -100, 100);
+    if (c === 'gold') {
+      const g = randInt(1800, 2400);
+      G.gold += g;
+      journal(`Took the gold from Vael's Hoard: ${g}g. The rest went back to the sea. No regrets.`);
+      toast(`${g} gold from the Corsair's Hoard! The tide takes the rest.`, 5500);
+      SFX.play('coin');
+    } else if (c === 'cargo') {
+      const g = randInt(1000, 1400);
+      G.gold += g;
+      for (const k of ['silk', 'amber', 'rum', 'powder']) {
+        const space = G.cargoCap - totalCargo();
+        if (space > 0) G.cargo[k] += Math.min(2, space);
+      }
+      journal(`Took ${g}g and a mix of trade goods from Vael's Hoard. The hold is heavy with plunder.`);
+      toast(`${g}g + silk, amber, rum & powder from the hoard!`, 5500);
+      SFX.play('coin');
+    } else if (c === 'compass') {
+      const g = randInt(1000, 1400);
+      G.gold += g;
+      G.upgrades.vael_compass = true;
+      journal(`Took ${g}g and Vael's ghost-compass from the hoard. The needle points where you want to go. Top speed improved by 8%.`);
+      toast(`${g}g + Vael's Ghost-Compass! Top speed +8%.`, 5500);
+      SFX.play('levelup');
+    } else {
+      const g = randInt(1300, 1700);
+      G.gold += g;
+      G.partyLevel++;
+      G.partyXp = 0;
+      for (const m of G.party) { m.maxHp += 8; m.hp = Math.min(m.hp + 8, m.maxHp); m.maxMp += 1; }
+      journal(`Split Vael's Hoard fairly: ${g}g, and enough salt-and-blood to level every soul aboard. They are different fighters now.`);
+      toast(`${g}g + full crew levels up — everyone gains HP and MP!`, 5500);
+      SFX.play('levelup');
+    }
+    SaveGame.save();
+    G.mode = 'sail';
+  });
 }
 
 function cycleShotType() {

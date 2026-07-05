@@ -71,13 +71,46 @@ const Port = (() => {
     if (tab === 'tavern') tavern(body);
   }
 
+  const HARBOR_FLAVOR = {
+    meridian:  'Crown Navy warships line the quay in perfect order. A midshipman scribbles in a ledger. The smell of pitch and authority is everywhere.',
+    gulls:     'Three men are arguing over a lobster the size of a boot. Driftwood lanterns swing in the salt wind. Whoever owns this place has never met a regulation they liked.',
+    cinderpeak:'Forge-smoke hangs in a permanent haze over the dock. Black-sand beaches stretch on either side. The harbor chain here is heavy enough to anchor a warship — and someone did, once.',
+    verdant:   'The jungle presses the dock from three sides. Parrots argue in the canopy. The ropes on the bollards are green with moss, and something is watching from the treetops.',
+    silkwater: 'The Compact counting-house dominates the harbor front. Silk bolt samples flutter from every window. Everything here is for sale, including the harbormaster\'s opinion of your flag.',
+    bonechapel:'The Ashen Order\'s white-stone quay is immaculate. No gulls land here. The monks who tie up your lines do so in complete silence, and their eyes never quite focus on you.',
+    frostholm: 'Ice-melt runs from the dock planking. Whale-oil smoke drifts from the longhouses above. The harbormaster wears a coat made of something that still has its claws.',
+    wreckers:  'Half the dock is built from ship\'s timbers that didn\'t choose to be here. The locals watch you unload with the professional interest of people who plan to pick through your cargo eventually.',
+  };
+
   function harbor(body) {
     const dmg = G.ship.maxHull - G.ship.hull;
     const cost = Math.ceil(dmg * 2 * priceMult(true));
+    const flavor = HARBOR_FLAVOR[isl.id] ||
+      `The harbor is ${isl.faction ? 'kept in ' + FACTIONS[isl.faction].name + ' order' : 'quiet'}. Gulls argue over fish heads.`;
+
+    // Pirate Admiral ceremony — first visit with high pirate rep
+    const admiralEvent = isl.id === 'gulls' && G.rep.pirate >= 50 && !G.islandEvents.pirateAdmiral;
+
     body.innerHTML = `
-      <p>The harbor is ${isl.faction ? 'kept in ' + FACTIONS[isl.faction].name + ' order' : 'quiet'}. Gulls argue over fish heads. Your crew eyes the taverns.</p>
+      <p>${flavor}</p>
+      ${admiralEvent ? `
+        <div class="upg">
+          <em>The captains of Gull's Rest are assembled on the quay. Someone has found a flag — your flag — and nailed it to the lighthouse. The eldest of them steps forward. "We've watched your career with professional admiration," he says. "There is a vacancy. The last Admiral fell off a cliff in unclear circumstances. The position is yours, if you want it."</em>
+        </div>
+        <button id="admiral">⚓ Accept — become Admiral of the Free Pirates</button>` : ''}
       <button id="repair" ${G.ship.hull >= G.ship.maxHull ? 'disabled' : ''}>🔧 Careen & repair hull (${cost} gold)</button>
       <button id="rest">🛏 Rest the crew — heal the party (free)</button>`;
+    if (admiralEvent) {
+      body.querySelector('#admiral').onclick = () => {
+        G.islandEvents.pirateAdmiral = true;
+        G.rep.pirate = 100;
+        journal('Named Admiral of the Free Pirates at Gull\'s Rest. The captains cheered, fired off two broadsides in salute, and accidentally sank a dinghy. The flag looks good on the lighthouse.');
+        toast('⚓ Admiral of the Free Pirates — the free seas know your name.', 6000);
+        SFX.play('levelup');
+        SaveGame.save();
+        show('harbor');
+      };
+    }
     body.querySelector('#repair').onclick = () => {
       if (G.gold < cost) { toast('Not enough gold for repairs.'); return; }
       G.gold -= cost;
@@ -183,6 +216,19 @@ const Port = (() => {
     if (bonechapelCharts) {
       html += `<button id="ashenCharts">📜 Purchase the Order's sea charts (150g)</button>`;
     }
+    // Silkwater: Compact Factor one-time bulk buyout
+    const compactBuyout = isl.id === 'silkwater' && totalCargo() > 0 && !G.islandEvents.compactBuyout;
+    if (compactBuyout) {
+      const buyoutVal = Object.keys(GOODS).reduce((sum, id) => sum + Math.round(GOODS[id].base * 1.5) * G.cargo[id], 0);
+      html += `<div class="upg"><em>A factor in a Compact coat materialises at your elbow. "I don't often see a full hold in this harbor. My employers are short on everything — rum, silk, the lot. I'm authorised to offer half-again the post price for the lot of it, no questions, cash now." He places a ledger on the table, open to a blank page.</em></div>
+        <button id="compactSell" ${buyoutVal === 0 ? 'disabled' : ''}>📋 Sell entire hold to the Compact (${buyoutVal}g — 1.5× rate)</button>`;
+    }
+    // Bonechapel: Ashen rite of passage — Mist blessing
+    const ashenRite = isl.id === 'bonechapel' && G.rep.ashen >= 10 && !G.ashenBlessed;
+    if (ashenRite) {
+      html += `<div class="upg"><em>The elder who handled your amber approaches after the others have gone. She sets a small bone disc on the table. "You have traded fairly with the Order," she says. "In return — a rite of passage. The Mist does not frighten those who know its name. When your crew falters, you will remember what we teach you." She waits.</em></div>
+        <button id="ashenRite" ${G.gold < 300 ? 'disabled' : ''}>🕯 Accept the rite of passage (300g)</button>`;
+    }
     // Old Hatch at Wreckers' Shoal — sells Vael's chart after vael_hook rumor is heard
     const oldHatch = isl.id === 'wreckers' && G.rumorsHeard.vael_hook && !G.vaelMap;
     if (oldHatch) {
@@ -192,7 +238,7 @@ const Port = (() => {
     }
     if (!localRumors.length &&
         !(isl.id === 'wreckers' && G.rumorsHeard.frag1 && !G.fragmentFrom.wreckers) &&
-        !bonechapelAmber && !bonechapelCharts && !oldHatch) {
+        !bonechapelAmber && !bonechapelCharts && !oldHatch && !compactBuyout && !ashenRite) {
       html += `<p class="tradetip">${tavernFlavor()}</p>`;
     }
     body.innerHTML = html;
@@ -257,6 +303,31 @@ const Port = (() => {
         toast('The Order confirms: the ghost ship carries a chart from the Mist.', 4500);
       }
       SFX.play('rumor');
+      show('tavern');
+    };
+    const compactSell = body.querySelector('#compactSell');
+    if (compactSell) compactSell.onclick = () => {
+      const val = Object.keys(GOODS).reduce((sum, id) => sum + Math.round(GOODS[id].base * 1.5) * G.cargo[id], 0);
+      if (val === 0) return;
+      G.gold += val;
+      for (const k of Object.keys(G.cargo)) G.cargo[k] = 0;
+      G.islandEvents.compactBuyout = true;
+      G.rep.merchant = clamp(G.rep.merchant + 8, -100, 100);
+      journal(`Sold the entire hold to the Compact Factor at Silkwater for ${val}g — one and a half times the going rate. He wrote something in his ledger and closed it before we could read.`);
+      toast(`${val}g from the Factor. Hold empty. A good deal, probably.`, 5000);
+      SFX.play('coin');
+      show('tavern');
+    };
+    const ashenRiteBtn = body.querySelector('#ashenRite');
+    if (ashenRiteBtn) ashenRiteBtn.onclick = () => {
+      if (G.gold < 300) { toast('The Order does not lower the price.'); return; }
+      G.gold -= 300;
+      G.ashenBlessed = true;
+      G.rep.ashen = clamp(G.rep.ashen + 15, -100, 100);
+      journal('Accepted the Ashen Order\'s rite of passage at Bonechapel. The elder spent an hour in silence, drawing a symbol on a disc of whale-bone. She pressed it into our captain\'s hand. "Name the Mist when it presses close," she said, "and it will step back."');
+      toast('The rite is given. In the Mist, the Ashen words will steady the crew.', 5500);
+      SFX.play('buff');
+      SaveGame.save();
       show('tavern');
     };
     const buyMap = body.querySelector('#buyMap');

@@ -65,7 +65,7 @@ function newGameState() {
     kills: 0, plunders: 0,
     journal: ['Fitted out at Port Meridian with 150 gold and a restless crew. The taverns whisper that the dragons did not die out — they went somewhere. Behind the Mist.'],
     dragonMet: false,
-    vaelMap: false, vaelDone: false,
+    vaelMap: false, vaelDone: false, ashenBlessed: false,
     ending: null,
     shotType: 'round',   // 'round' | 'chain' | 'grape'  — cycles with [G]
   };

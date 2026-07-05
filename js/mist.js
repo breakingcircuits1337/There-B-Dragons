@@ -66,6 +66,7 @@ const MistVoyage = (() => {
         <div class="choices">
           <button data-c="rum">🍶 Break out the rum — steady them the old way ${hasRum ? '(1 rum)' : '(40 gold, bought from ship stores)'}</button>
           <button data-c="iron">⚓ Iron discipline — fear cuts deeper than the lash</button>
+          ${G.ashenBlessed ? '<button data-c="ashen">🕯 Speak the Ashen words — the rite the Order taught you</button>' : ''}
           <button data-c="turn">↩ Turn south — try again when nerves are fresher</button>
         </div>
       </div>`, el => {
@@ -85,6 +86,12 @@ const MistVoyage = (() => {
           for (const m of G.party) m.hp = Math.max(1, m.hp - 8);
           journal('Held the crew to the line by will alone. It cost them — everyone bleeds a little in the Mist.');
           toast('Discipline holds, barely. The party is shaken (-8 HP each).');
+        } else if (c === 'ashen') {
+          G.mistEvents.morale = true;
+          for (const m of G.party) { m.hp = m.maxHp; m.mp = m.maxMp; }
+          journal('Spoke the Ashen Order\'s rite into the fog. The Mist did not answer — but it stepped back, just a little. The crew straightened. The helmsman\'s lips stopped moving. Whatever the Order paid for with thirty years of vigil, this was part of it.');
+          toast('The Ashen rite names the Mist and it quiets. The party is fully restored.', 6000);
+          SFX.play('heal');
         } else {
           G.ship.heading = Math.PI / 2; // due south, out of the Mist
           G.mistTimer = -8;             // grace before the fear returns
